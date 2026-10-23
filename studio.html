@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>短篇测试生成</title>
+<style>
+  :root {
+    --bg: #e7e7ea;
+    --card: #fff;
+    --ink: #222;
+    --muted: #8a8a8a;
+    --line: #eee;
+    --blue: #3b86e8;
+    --soft: #f6f7f9;
+    --warn: #9a3412;
+    --warnbg: #fff4ed;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  }
+  button, input, select, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
+  .app { height: 100%; display: flex; flex-direction: column; padding: 16px; gap: 12px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 0 4px; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 750; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  header a { color: var(--blue); font-size: 13px; text-decoration: none; }
+  .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr 420px; background: var(--card); border-radius: 18px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.06); }
+  .col { min-height: 0; display: flex; flex-direction: column; }
+  .col + .col { border-left: 1px solid var(--line); }
+  .pad { padding: 14px; }
+  .search { display: flex; gap: 8px; }
+  .search input, .search select, .add select, .controls select, .controls input {
+    height: 34px; border: 1px solid #e6e6e6; border-radius: 10px; background: var(--soft); padding: 0 10px; font-size: 13px;
+  }
+  .search input { flex: 1; min-width: 0; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .filters button, .chip, .add button, .actions button, .seg button {
+    border: 1px solid #e6e6e6; background: #fff; border-radius: 999px; height: 28px; padding: 0 10px; font-size: 12px;
+  }
+  .filters button.on, .chip.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .list { overflow: auto; padding: 0 8px 12px; }
+  .item { width: 100%; text-align: left; border: 0; background: transparent; border-radius: 12px; padding: 10px; display: block; }
+  .item.on { background: #f3f7fd; }
+  .item b { display: block; font-size: 14px; line-height: 1.35; }
+  .item small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .item i { font-style: normal; color: var(--warn); }
+  .scroller { overflow: auto; padding: 16px 18px 28px; }
+  .kicker { color: var(--muted); font-size: 12px; margin: 0 0 6px; }
+  h2 { margin: 0; font-size: 22px; line-height: 1.35; }
+  .meta { margin: 8px 0 0; color: #666; font-size: 13px; }
+  .banner { margin-top: 12px; background: var(--warnbg); color: var(--warn); border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+  .people { margin-top: 12px; font-size: 13px; color: #666; }
+  .group { margin-top: 16px; }
+  .group h3 { margin: 0 0 8px; font-size: 13px; color: #666; font-weight: 650; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip.off { color: #aaa; background: #fafafa; }
+  .excerpt { margin-top: 16px; padding: 12px; background: var(--soft); border-radius: 12px; color: #555; font-size: 13px; line-height: 1.7; }
+  .studio-top { padding: 14px 14px 0; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .desc { margin: 8px 0 0; color: #666; font-size: 12px; line-height: 1.55; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .controls label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+  .prompt { margin: 10px 14px; flex: 1; min-height: 180px; resize: none; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fbfbfc; font-size: 12.5px; line-height: 1.65; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
+  .actions .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .draft { margin: 0 14px 16px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; }
+  .draft h3 { margin: 0 0 6px; font-size: 16px; }
+  .draft .tagline { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+  .draft p { margin: 0 0 8px; font-size: 14px; line-height: 1.75; }
+  .empty { color: var(--muted); font-size: 13px; padding: 12px; }
+  .dirty { margin: 0 14px 8px; color: var(--blue); font-size: 12px; }
+  @media (max-width: 1100px) {
+    .shell { grid-template-columns: 1fr; overflow: auto; }
+    .col + .col { border-left: 0; border-top: 1px solid var(--line); }
+    .app { height: auto; }
+    .list { max-height: 360px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>短篇测试生成</h1>
+      <p id="summary">正在读取素材标签…</p>
+    </div>
+    <a href="index.html">返回社区原型</a>
+  </header>
+  <div class="shell">
+    <section class="col">
+      <div class="pad">
+        <div class="search">
+          <input id="q" type="search" placeholder="搜标题、标签、关键词" aria-label="搜索素材">
+          <select id="sort" aria-label="排序">
+            <option value="hot">按热度</option>
+            <option value="comments">按评论</option>
+          </select>
+        </div>
+        <div class="filters" id="filters"></div>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+    <section class="col">
+      <div class="scroller" id="detail"></div>
+    </section>
+    <section class="col" id="studio"></section>
+  </div>
+</div>
+<script src="data/corpus.js"></script>
+<script>
+const CATS = [
+  ["plot", "情节"],
+  ["persona", "气质"],
+  ["relation", "关系"],
+  ["setting", "场景"],
+  ["mood", "情绪"],
+  ["craft", "写法"],
+  ["keywords", "关键词"]
+];
+const LEADS = ["周屿", "沈析", "陈见", "江衡", "许晏", "林深", "顾迟", "宋衍"];
+const TEMPLATES = [
+  { id: "frame", name: "热帖骨架", desc: "先给一个现场，再用两三个场景把关系里的错位写清楚，标题必须是正文里能单独站住的一句话。" },
+  { id: "chase", name: "追妻火葬场", desc: "女主离开要有具体理由。男主的求和必须是一个行动，不能只靠认错、下雨或下跪。女主可以心软，但不立刻回到原来的位置。" },
+  { id: "marry", name: "先婚后爱", desc: "结婚理由要具体。用三件同住的小事改写关系，结尾是重新选择，不是突然热恋。" },
+  { id: "short", name: "单场景短打", desc: "只写一个晚上里的一个场景，对话占一半以上，篇幅压在一千五百字内。" },
+  { id: "sweet", name: "甜向日常", desc: "冲突当天能解开。允许吃醋和玩笑，不写羞辱。结尾落在一句日常话上。" },
+  { id: "mash", name: "标签混剪", desc: "同一篇里用上情节、气质、场景，以及至少两个关键词。标签打架时，保留更具体的那个，另一个改成误会或职业。" }
+];
+const PLACE = {
+  校园: "大学南门外的梧桐荫里",
+  娱乐圈: "通告散场后的地下车库",
+  豪门: "老宅那间灯总是偏暗的餐厅",
+  医院: "夜班结束的医院侧门",
+  公司: "公司楼下的玻璃雨廊",
+  机场: "到达厅出口的隔离带外",
+  雨夜: "没打伞的屋檐下",
+  雪天: "初雪刚盖住台阶的路口",
+  婚礼: "婚礼侧厅的消防通道口",
+  酒店: "宴会散尽的走廊",
+  家乡: "县城汽车站门口",
+  高中回忆: "已经改成商业街的旧校门口"
+};
+
+const data = window.CORPUS;
+const state = {
+  q: "",
+  plot: "",
+  sort: "hot",
+  id: "",
+  template: "frame",
+  manualTemplate: false,
+  words: 2500,
+  ending: "HE",
+  pov: "第一人称",
+  tone: "UGC",
+  lead: "周屿",
+  off: new Set(),
+  dirty: false,
+  seed: 1,
+  draft: null
+};
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function hotText(n) {
+  return n >= 10000 ? (n / 10000).toFixed(1) + "万" : String(n);
+}
+function story() {
+  return data.stories.find(s => s.id === state.id) || null;
+}
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  let rows = data.stories.filter(s => {
+    if (state.plot && !(s.tags.plot || []).includes(state.plot)) return false;
+    if (!q) return true;
+    const blob = [s.title, s.author, ...(s.notes || []), ...(s.keywords || []), ...Object.values(s.tags).flat()].join(" ").toLowerCase();
+    return blob.includes(q);
+  });
+  rows.sort((a, b) => (b[state.sort] || 0) - (a[state.sort] || 0));
+  return rows;
+}
+function activeTags(s) {
+  const out = {};
+  CATS.forEach(([cat]) => {
+    const src = cat === "keywords" ? (s.keywords || []) : (s.tags[cat] || []);
+    out[cat] = src.filter(tag => !state.off.has(cat + ":" + tag));
+  });
+  return out;
+}
+function pickTemplate(s) {
+  const plots = s.tags.plot || [];
+  const first = plots[0] || "";
+  const mood = (s.tags.mood || []).join(" ");
+  if ((s.tags.craft || []).includes("短打")) return "short";
+  if (/先婚|联姻|闪婚|隐婚|离婚|复婚|带球/.test(first)) return "marry";
+  if (/追妻|破镜|冷战|海王/.test(first)) return "chase";
+  if (/沙雕|甜/.test(mood)) return "sweet";
+  return "frame";
+}
+function endingLine() {
+  if (state.ending === "BE") return "保留爱意，但这一次没有和好。不惩罚叙述者，也不把伤害写成浪漫。";
+  if (state.ending === "开放") return "情绪停在未完成的地方。不写复合成功，也不写彻底决裂。";
+  return "关系有明确的靠近。结尾落在一个具体动作上，不用宣誓式告白收束。";
+}
+function taskText() {
+  const map = {
+    frame: "按这个顺序写：第一段八十个字内进入一个具体场景；接着用两到三个场景写出关系里的错位；最后停在一个动作上。不要作者出面总结。",
+    chase: "按这个顺序写：分手时把离开的理由写成具体的事，不要只写男方后来有多痛苦；中间写叙述者离开后自己的一段生活；求和必须是一个看得见的行动，例如改掉一份绑定对方的安排、当众澄清、或把对方独自扛过的事接下来。叙述者可以动摇，但不能在同一晚回到原来的关系。",
+    marry: "结婚的理由要具体，可以是家族、合约或各取所需。写三件同住时的小事，其中一件改变他们看对方的方式。如果标签里有带球跑，孩子只作为已经存在的生活事实，不写受孕过程。结尾是重新做一次选择，而不是突然热恋。",
+    short: "只写一个场景，时间不超过一个晚上。对话占一半以上。篇幅控制在一千五百字以内，即使上面的字数更高，也以短打为准。",
+    sweet: "冲突要小，并且在当天解开。可以吃醋、可以开玩笑，不写羞辱和报复。结尾是一句只有这两个人听得懂的日常话。",
+    mash: "必须同时用上给定的情节、气质和场景，并至少落到两个关键词上的物件或地点。如果两个标签互相打架，保留更具体的那个，把另一个写成误会、职业或一段已经过去的经历。"
+  };
+  return map[state.template] || map.frame;
+}
+function buildPrompt(s) {
+  if (!s) return "";
+  if (s.blocked) return "这篇素材不进入生成。\n" + s.blockReason;
+  const tags = activeTags(s);
+  const line = (cat) => (tags[cat] || []).join("、") || "无";
+  const pov = state.pov === "第二人称"
+    ? "用「你」作叙述者。对方只使用这个原创姓名：" + state.lead + "。"
+    : "用「我」作叙述者。对方只使用这个原创姓名：" + state.lead + "。";
+  const tone = state.tone === "PGC"
+    ? "PGC。句子收干净，少用网络口语，段落完整。"
+    : "UGC。可以有口语、吐槽和没说完的半句，像社区里的人在讲自己的事。";
+  const hook = s.hook ? "开头可以借用这句的语气，但不要复述，也不要沿用里面的人称安排：" + s.hook : "不提供原句。";
+  return [
+    "【系统】",
+    "你是短篇小说作者，写一篇能单独发在短篇社区里的原创故事。",
+    "",
+    "硬性约束：",
+    "1. 角色使用原创姓名。不出现真实明星、爱豆、主播或其他可识别的公众人物，也不要用谐音或缩写去影射他们。",
+    "2. 不复述、不改写任何已有帖子的句子、对白和情节桥段。关键词里如果像人名，直接丢掉。",
+    "3. 出场人物都是成年人。校园只写大学，或已经工作的人；不写中学阶段的恋爱和亲密接触。",
+    "4. 不写亲属之间的恋情。",
+    "5. 写关系怎么变化，写对话和生活细节。不做露骨的性行为描写。",
+    "6. " + pov,
+    "7. 文风：" + tone,
+    "8. 篇幅约 " + state.words + " 字。",
+    "9. 结局：" + state.ending + "。" + endingLine(),
+    "",
+    "【任务】" + (TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0]).name,
+    taskText(),
+    "",
+    "【标签】",
+    "情节：" + line("plot"),
+    "气质：" + line("persona"),
+    "关系：" + line("relation"),
+    "场景：" + line("setting"),
+    "情绪：" + line("mood"),
+    "写法：" + line("craft"),
+    "意象关键词：" + line("keywords"),
+    hook,
+    "",
+    "【输出】",
+    "第一行只写标题。",
+    "空一行后写正文。",
+    "不要写创作说明，不要写标签列表。"
+  ].join("\n");
+}
+
+function placeOf(settings) {
+  for (const key of settings || []) if (PLACE[key]) return PLACE[key];
+  return "街角那家还没打烊的面馆门口";
+}
+function familyOf(plots) {
+  const p = (plots || []).join(" ");
+  if (/先婚|联姻|闪婚|隐婚|离婚|复婚|带球/.test(p)) return "marry";
+  if (/替身|白月光/.test(p)) return "sub";
+  if (/暗恋|青梅|一见钟情|双向/.test(p)) return "crush";
+  if (/沙雕|甜/.test(p)) return "sweet";
+  return "reunion";
+}
+function buildDraft(s) {
+  const tags = activeTags(s);
+  const name = state.lead;
+  const place = placeOf(tags.setting);
+  const persona = (tags.persona || [])[0] || "克制";
+  const thing = (tags.keywords || []).find(w => w.length >= 2 && w.length <= 6) || "旧钥匙";
+  const plot = (tags.plot || [])[0] || "关系拉扯";
+  const family = familyOf(tags.plot.concat(tags.mood));
+  const n = state.seed;
+  let title = "把话说完";
+  let paras = [];
+  if (family === "marry") {
+    title = n % 2 ? "灯还亮着" : "第三个杯子";
+    paras = [
+      "我和" + name + "结婚的理由写在协议附录里，跟爱没有关系。家里要一个能出席的人，他要一份不会被董事会追问的稳定。证领下来的那天，我们在民政局门口只拍了一张相，谁也没叫对方看镜头。",
+      "一起住了二十一天。第一件小事是冰箱：他买的牛奶总靠左，我把剩菜放在最上层，谁也不挪谁的。第二件是" + place + "，加班的那个雨夜他居然等着，伞骨是歪的，一句解释也没有。第三件是" + thing + "。我以为那是他前一段关系留下的物件，问出口的时候声音很硬。",
+      "他看着" + thing + "，停了很久才说：“这是我自己的。你要是介意，我明天收起来。” " + persona + "在他身上不是冷脸，是把每句话都说短。",
+      state.ending === "BE"
+        ? "我把协议副本放回抽屉，钥匙留在玄关。灯我帮他关了一盏，人没有留下。"
+        : "我没有把" + thing + "收走。只是把牛奶挪到了中间那一格，又多拿了一个杯子放上桌。“明天的局，我可以自己去。”他说。我回他：“那你把伞修好。歪着的那把，我不要。”"
+    ];
+  } else if (family === "crush") {
+    title = "你先别回头";
+    paras = [
+      "我喜欢" + name + "这件事，说出来之前已经在" + place + "演练过很多遍。他总是先到，把靠窗的位置空出来，好像那不是照顾，只是习惯。",
+      "今天他手里转着" + thing + "，听见我叫他，耳根先红了，嘴上还是那副" + persona + "的样子：“你不是说忙吗。”",
+      "“忙完了。”我把准备了一路的玩笑咽回去，只剩下一句干巴巴的实话，“我不是来还你东西的。东西只是借口。”",
+      state.ending === "BE"
+        ? "他点了点头，把" + thing + "放回我手里。“我知道。可我现在还没法接。”我把那句话带回了风里。"
+        : "他终于把" + thing + "扣在掌心，像怕它掉下去。“那借口可以再留一天吗。我今晚想先把没说的那句补上。”"
+    ];
+  } else if (family === "sweet") {
+    title = "醋放少了";
+    paras = [
+      "晚饭是" + name + "做的。他声称自己很会，结果汤咸了，" + thing + "还忘在" + place + "。我尝了一口，故意把脸皱起来。",
+      "“你要是嫌弃，我重做。”他系着围裙，" + persona + "得连认输都像在谈判。",
+      "我把勺子递回去：“咸一点没关系。你刚才在楼下跟谁聊那么久？”",
+      "他愣了一下，忽然笑出来：“快递员。你的" + thing + "，他不让放门口。”说完把那件东西放到我手边，又夹了一筷子菜到我碗里。“醋我下次少放。人你不能少想。”"
+    ];
+  } else if (family === "sub") {
+    title = "不是那个人";
+    paras = [
+      "别人总说我哪里像" + name + "心里那个人。像笑容，像说话的尾音，像会把" + thing + "握热。我听过三次以后，在" + place + "把他叫住。",
+      "“你要是在找替身，现在就可以停。”",
+      "他脸上的" + persona + "裂了一下，很快又合上。“我以前分不清。是我的问题，不是你的责任。”他把一个空掉的相框扣在桌上，玻璃朝下。“从今天起我只叫你的名字。你要是愿意听，我就说给你，不说给记忆里那个人。”",
+      state.ending === "BE"
+        ? "我摇头。“名字我自己留着。你先把那个人好好忘掉。”"
+        : "我没有马上答应吃饭。只是把" + thing + "从他手里拿过来，放进自己的包。“先从不再比较开始。比较这件事，一次就够了。”"
+    ];
+  } else {
+    title = n % 2 ? "雨停之前" : "伞骨是歪的";
+    paras = [
+      "我在" + place + "看见" + name + "。分手那天他也站过类似的位置，听到我说结束，只点了点头。" + plot + "这个说法是别人后来贴上去的，我自己记得的只有一件事：我离开，是因为有句话他始终不肯说。",
+      "这次他带来的不是道歉，是" + thing + "。东西放在两人中间，像一件证据。“你的名字我从那份安排里拿掉了。以前用它把你留住，是我做错。”他说话仍旧" + persona + "，短，硬，可终于是在说事，不是在说态度。",
+      "我问他为什么现在才做。他看着地面上的水印：“因为我才听懂，你要的不是我后悔，是你走了以后，生活还是你的。”",
+      state.ending === "BE"
+        ? "我把" + thing + "留给他。“这件事你做对了。人我今天不带回去。”雨还在下，我自己走进了车站。"
+        : state.ending === "开放"
+          ? "我把" + thing + "收进包里，没有说原谅。“我听到了。下一步还没想好。”他点头，没有跟上来。"
+          : "我侧过身，让出半边屋檐。“话还没说完。你上来，说完再决定要不要一起走。”他跟上的那一步很轻，像怕把这句邀约踩碎。"
+    ];
+  }
+  if (state.tone === "UGC") paras.splice(1, 0, "我当时其实想得很直白：这人怎么现在才开窍。这话我没说出口，说出去就便宜他了。");
+  return { title, tags: CATS.flatMap(([cat, label]) => (tags[cat] || []).slice(0, 3).map(t => t)), paras, family };
+}
+
+function renderFilters() {
+  const plots = (data.stats.plot || []).slice(0, 8);
+  document.getElementById("filters").innerHTML = [["", "全部"]].concat(plots).map(([name]) => {
+    const label = name || "全部";
+    const on = state.plot === name ? " on" : "";
+    return `<button type="button" class="${on}" data-plot="${esc(name)}">${esc(label)}</button>`;
+  }).join("");
+}
+function renderList() {
+  const rows = filtered();
+  document.getElementById("list").innerHTML = rows.length ? rows.map(s => {
+    const plots = (s.tags.plot || []).slice().sort((a, b) => (a === state.plot ? -1 : 0) - (b === state.plot ? -1 : 0)).slice(0, 2).join(" · ") || "未标情节";
+    const mark = s.blocked ? " <i>不生成</i>" : "";
+    return `<button type="button" class="item${s.id === state.id ? " on" : ""}" data-id="${esc(s.id)}"><b>${esc(s.title)}</b><small>热度 ${hotText(s.hot)} · ${esc(plots)}${mark}</small></button>`;
+  }).join("") : `<div class="empty">没有匹配的素材</div>`;
+}
+function chip(cat, tag, on) {
+  return `<button type="button" class="chip${on ? " on" : " off"}" data-cat="${esc(cat)}" data-tag="${esc(tag)}">${esc(tag)}</button>`;
+}
+function renderDetail() {
+  const s = story();
+  const box = document.getElementById("detail");
+  if (!s) { box.innerHTML = `<div class="empty">先从左边选一篇素材</div>`; return; }
+  const tags = activeTags(s);
+  const groups = CATS.map(([cat, label]) => {
+    const src = cat === "keywords" ? (s.keywords || []) : (s.tags[cat] || []);
+    if (!src.length) return "";
+    return `<div class="group"><h3>${label}</h3><div class="chips">${src.map(tag => chip(cat, tag, (tags[cat] || []).includes(tag))).join("")}</div></div>`;
+  }).join("");
+  const notes = (s.notes || []).length ? `<div class="group"><h3>作者开头标注</h3><div class="chips">${s.notes.map(n => `<span class="chip on">${esc(n)}</span>`).join("")}</div></div>` : "";
+  box.innerHTML = `
+    <p class="kicker">素材 ${esc(s.id)}</p>
+    <h2>${esc(s.title)}</h2>
+    <p class="meta">${esc(s.author)} · 热度 ${hotText(s.hot)} · 评论 ${s.comments} · ${s.chars} 字</p>
+    <p class="people">素材人物：${esc((s.people || []).join("、") || "未标出")}。只作对照，不会写进提示词。点下面的标签，可以把它们移出或加回提示词。</p>
+    ${s.blocked ? `<div class="banner">${esc(s.blockReason)}。标签仍可查看。</div>` : ""}
+    ${notes}
+    ${groups || `<div class="empty">这篇没有抽出足够的标签，可以在右侧手动选择模板后再补。</div>`}
+    ${s.hook ? `<div class="excerpt">可借语气：${esc(s.hook)}</div>` : ""}
+    ${s.excerpt ? `<div class="excerpt">${esc(s.excerpt)}</div>` : ""}
+  `;
+}
+function renderStudio() {
+  const s = story();
+  const keptPrompt = state.dirty ? document.getElementById("prompt")?.value : "";
+  const tpl = TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0];
+  const prompt = s ? buildPrompt(s) : "";
+  const draft = state.draft;
+  document.getElementById("studio").innerHTML = `
+    <div class="studio-top">
+      <div class="seg">${TEMPLATES.map(t => `<button type="button" data-tpl="${t.id}" class="${t.id === state.template ? "on" : ""}">${t.name}</button>`).join("")}</div>
+      <p class="desc">${esc(tpl.desc)}</p>
+      <div class="controls">
+        <label>字数<select id="words">${[1500, 2500, 4000].map(n => `<option ${n === state.words ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>结局<select id="ending">${["HE", "开放", "BE"].map(n => `<option ${n === state.ending ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>人称<select id="pov">${["第一人称", "第二人称"].map(n => `<option ${n === state.pov ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>文风<select id="tone">${["UGC", "PGC"].map(n => `<option ${n === state.tone ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>角色名<input id="lead" value="${esc(state.lead)}" maxlength="8"></label>
+      </div>
+    </div>
+    <textarea class="prompt" id="prompt" ${s && s.blocked ? "readonly" : ""}>${esc(prompt)}</textarea>
+    <p class="dirty" id="dirty" ${state.dirty ? "" : "hidden"}>提示词已手动改过。点「按标签重填」会覆盖这段文字。</p>
+    <div class="actions">
+      <button type="button" class="primary" id="copy">复制提示词</button>
+      <button type="button" id="refill">按标签重填</button>
+      <button type="button" id="gen" ${!s || s.blocked ? "disabled" : ""}>生成结构试写</button>
+      <button type="button" id="reroll" ${!s || s.blocked ? "disabled" : ""}>换一稿</button>
+      <button type="button" id="pack">导出当前筛选 5 条</button>
+    </div>
+    ${draft ? `<article class="draft"><p class="tagline">结构试写 · 用来看标签和节奏，不是模型成稿 · ${esc(draft.tags.slice(0, 6).join(" / "))}</p><h3>${esc(draft.title)}</h3>${draft.paras.map(p => `<p>${esc(p)}</p>`).join("")}</article>` : ""}
+  `;
+  const area = document.getElementById("prompt");
+  if (area) area.value = state.dirty && keptPrompt ? keptPrompt : prompt;
+}
+function selectStory(id, keepTemplate) {
+  const s = data.stories.find(x => x.id === id);
+  if (!s) return;
+  state.id = id;
+  state.off = new Set();
+  state.dirty = false;
+  state.draft = null;
+  state.ending = s.ending === "BE" ? "BE" : "HE";
+  state.pov = (s.tags.craft || []).includes("第二人称") ? "第二人称" : "第一人称";
+  if (!keepTemplate && !state.manualTemplate) state.template = pickTemplate(s);
+  if (state.template === "short") state.words = 1500;
+  render();
+}
+function render() {
+  renderFilters();
+  renderList();
+  renderDetail();
+  renderStudio();
+}
+function download(filename, text) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; renderList(); });
+document.getElementById("sort").addEventListener("change", e => { state.sort = e.target.value; renderList(); });
+document.getElementById("filters").addEventListener("click", e => {
+  const btn = e.target.closest("[data-plot]");
+  if (!btn) return;
+  state.plot = btn.dataset.plot;
+  renderFilters();
+  renderList();
+});
+document.getElementById("list").addEventListener("click", e => {
+  const btn = e.target.closest("[data-id]");
+  if (!btn) return;
+  state.manualTemplate = false;
+  selectStory(btn.dataset.id);
+});
+document.getElementById("detail").addEventListener("click", e => {
+  const btn = e.target.closest("[data-cat]");
+  if (!btn) return;
+  const key = btn.dataset.cat + ":" + btn.dataset.tag;
+  if (state.off.has(key)) state.off.delete(key); else state.off.add(key);
+  state.draft = null;
+  renderDetail();
+  if (!state.dirty) renderStudio();
+  else document.getElementById("dirty").hidden = false;
+});
+document.getElementById("studio").addEventListener("click", async e => {
+  const tpl = e.target.closest("[data-tpl]");
+  if (tpl) {
+    state.template = tpl.dataset.tpl;
+    state.manualTemplate = true;
+    if (state.template === "short") state.words = 1500;
+    state.dirty = false;
+    renderStudio();
+    return;
+  }
+  if (e.target.id === "refill") { state.dirty = false; renderStudio(); }
+  if (e.target.id === "copy") {
+    const text = document.getElementById("prompt").value;
+    try { await navigator.clipboard.writeText(text); e.target.textContent = "已复制"; }
+    catch { e.target.textContent = "请手动复制"; }
+    setTimeout(() => { e.target.textContent = "复制提示词"; }, 1200);
+  }
+  if (e.target.id === "gen" || e.target.id === "reroll") {
+    const s = story();
+    if (!s || s.blocked) return;
+    if (e.target.id === "reroll") state.seed += 1;
+    state.lead = document.getElementById("lead").value.trim() || state.lead;
+    state.draft = buildDraft(s);
+    renderStudio();
+  }
+  if (e.target.id === "pack") {
+    const rows = filtered().filter(s => !s.blocked).slice(0, 5);
+    const snapshot = { id: state.id, off: state.off, seed: state.seed, lead: state.lead };
+    const payload = rows.map((s, i) => {
+      state.id = s.id;
+      state.off = new Set();
+      state.seed = snapshot.seed + i;
+      state.lead = LEADS[i % LEADS.length];
+      return { id: s.id, sourceTitle: s.title, prompt: buildPrompt(s), draft: buildDraft(s) };
+    });
+    state.id = snapshot.id;
+    state.off = snapshot.off;
+    state.seed = snapshot.seed;
+    state.lead = snapshot.lead;
+    download("short-story-test-5.json", JSON.stringify(payload, null, 2));
+  }
+});
+document.getElementById("studio").addEventListener("change", e => {
+  if (["words", "ending", "pov", "tone"].includes(e.target.id)) {
+    state[e.target.id] = e.target.id === "words" ? Number(e.target.value) : e.target.value;
+    state.dirty = false;
+    renderStudio();
+  }
+  if (e.target.id === "lead") state.lead = e.target.value.trim() || "周屿";
+});
+document.getElementById("studio").addEventListener("input", e => {
+  if (e.target.id === "prompt") state.dirty = true;
+  if (e.target.id === "lead") state.lead = e.target.value.trim() || "周屿";
+});
+
+if (!data || !data.stories) {
+  document.getElementById("summary").textContent = "没有读到 data/corpus.js";
+} else {
+  document.getElementById("summary").textContent = `已处理 ${data.count} 篇。抽出情节、气质、关系、场景和关键词。${data.blocked} 篇含不宜生成的内容，只保留标签。提示词使用原创角色。`;
+  const first = data.stories.find(s => !s.blocked && (s.tags.plot || []).length) || data.stories.find(s => !s.blocked) || data.stories[0];
+  selectStory(first.id);
+}
+</script>
+</body>
+</html>

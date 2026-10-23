@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>短篇社区</title>
+<style>
+  :root {
+    --stage: #e7e7ea;
+    --blue: #3b86e8;
+    --blue-2: #5aa0f0;
+    --ink: #222;
+    --muted: #8d8d8d;
+    --line: #f0f0f0;
+    --bg: #f6f7f9;
+    --card: #fff;
+    --orange: #ff8a1e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 24px;
+    background: var(--stage);
+    color: var(--ink);
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  }
+  button, input, textarea { font-family: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .panel { width: 248px; flex: none; background: #fff; border-radius: 20px; padding: 18px 16px; box-shadow: 0 16px 40px rgba(0,0,0,.08); }
+  .panel h2 { margin: 0 0 6px; font-size: 18px; }
+  .panel p { margin: 0 0 12px; color: #888; font-size: 12px; line-height: 1.5; }
+  .row { display: flex; gap: 8px; }
+  .tbtn { flex: 1; height: 36px; border-radius: 10px; border: 1px solid #e6e6e6; background: #fff; font-size: 13px; }
+  .tbtn.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .tbtn.primary { width: 100%; margin-top: 8px; background: var(--blue); color: #fff; border-color: var(--blue); }
+  .file-name { margin: 8px 0 0; min-height: 16px; font-size: 12px; color: #888; word-break: break-all; }
+  .file-name.playing { color: var(--blue); }
+
+  .device {
+    position: relative; width: 390px; height: min(844px, calc(100vh - 32px)); min-height: 680px; flex: none;
+    padding: 10px; border-radius: 46px; background: #111;
+    box-shadow: 0 0 0 1px #2a2a2a, 0 24px 60px rgba(0,0,0,.28);
+  }
+  .device::before, .device::after { content: ""; position: absolute; width: 3px; background: #3a3a3a; }
+  .device::before { left: -3px; top: 118px; height: 26px; border-radius: 2px 0 0 2px; box-shadow: 0 42px 0 #3a3a3a, 0 84px 0 #3a3a3a; }
+  .device::after { right: -3px; top: 168px; height: 58px; border-radius: 0 2px 2px 0; }
+  .screen {
+    height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); position: relative;
+    display: flex; flex-direction: column; color: var(--ink);
+  }
+  .screen.dark { color-scheme: dark; }
+  .status { flex: none; height: 28px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 16px 1px; font-size: 13px; font-weight: 650; background: #fff; }
+  .status-left, .status-icons { display: flex; align-items: center; gap: 5px; }
+  .stage { flex: 1; min-height: 0; position: relative; }
+  .view { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .scroller { flex: 1; overflow: auto; scrollbar-width: none; }
+  .scroller::-webkit-scrollbar { width: 0; height: 0; }
+
+  .searchrow { display: flex; align-items: center; gap: 8px; padding: 8px 12px 2px; }
+  .search {
+    margin: 8px 12px; height: 34px; border-radius: 17px; background: #fff; display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; color: #b0b0b0; font-size: 13px; border: 0; width: calc(100% - 24px);
+  }
+  .searchrow .search { margin: 0; width: auto; flex: 1; }
+  .search .icon { width: 18px; height: 18px; border: 0; background: transparent; padding: 0; color: #b0b0b0; display: grid; place-items: center; }
+  .search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; font-size: 13px; color: #333; }
+  .search input::placeholder { color: #b0b0b0; }
+  .reward { width: 46px; height: 46px; border: 2px solid #fff; border-radius: 50%; padding: 0; color: #8a4b00; font-size: 9px; font-weight: 800; line-height: 1.15; background: radial-gradient(circle at 40% 30%, #ffe9a8, #f0b030); box-shadow: 0 2px 8px rgba(210,150,30,.28); }
+  .screen svg { width: 18px; height: 18px; flex: none; }
+  .search svg { flex: none; }
+  .screen.grad { background: linear-gradient(180deg, transparent 0 240px, #f7f8fa 520px), linear-gradient(102deg, #fef7ea 0%, #f6f3ee 42%, #e9f0f8 74%, #e6eefa 100%); }
+  .screen.grad .topbar { background: transparent; }
+  .screen.hpbg { background: #e4ebe8 url("assets/hp-bg.jpg") center / cover no-repeat; }
+  .screen.hpbg .topbar, .screen.hpbg .taghead, .screen.hpbg .tabs3, .screen.hpbg .filters, .view.hp { background: transparent; }
+  .screen.hpbg .search { background: rgba(255,255,255,.78); }
+  .view.feed { background: transparent; }
+  .art { position: relative; height: 176px; color: #fff; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; gap: 2px; }
+  .art b { font-size: 20px; line-height: 1.2; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .art span, .art small { font-size: 11px; opacity: .92; }
+  .art.sky { height: 210px; background: linear-gradient(165deg, #9ec0ea 0%, #2a3d5c 46%, #141c28 100%); }
+  .art.tide { height: 156px; background: linear-gradient(155deg, #7eb0ff 0%, #2a3a86 46%, #1a143c 100%); }
+  .chips { display: flex; gap: 16px; padding: 4px 14px 12px; overflow: auto; scrollbar-width: none; font-size: 15px; color: #666; white-space: nowrap; }
+  .chips::-webkit-scrollbar { height: 0; }
+  .chips button { border: 0; background: transparent; color: inherit; padding: 0; font-size: 15px; flex: none; position: relative; }
+  .chips button.on { color: #111; font-weight: 750; }
+  .chips button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 3px; border-radius: 2px; background: var(--blue); }
+  .subchips { display: flex; align-items: center; gap: 4px; padding: 0 8px 8px; overflow: hidden; }
+  .subchips-scroll { display: flex; gap: 4px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .subchips-scroll::-webkit-scrollbar { height: 0; }
+  .subchips button { flex: none; height: 26px; padding: 0 8px; border: 0; border-radius: 13px; background: transparent; color: #888; font-size: 13px; white-space: nowrap; }
+  .subchips button.on { background: #fff; color: #222; font-weight: 650; }
+  .subchips .sort-pill { display: flex; flex: none; align-items: center; height: 26px; padding: 2px; border-radius: 13px; background: rgba(0,0,0,.06); }
+  .subchips .sort-pill button { height: 22px; padding: 0 8px; border-radius: 11px; background: transparent; color: #8a8a8a; font-weight: 500; }
+  .subchips .sort-pill button.on { background: #fff; color: #222; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .subchips > button[data-more] { flex: none; }
+
+  .masonry { columns: 2; column-gap: 8px; padding: 0 10px 12px; }
+  .card { break-inside: avoid; margin: 0 0 8px; background: #fff; border-radius: 10px; overflow: hidden; padding: 0; border: 0; text-align: left; width: 100%; color: inherit; display: block; }
+  .card img.cover { width: 100%; height: 132px; object-fit: cover; display: block; background: #ddd; }
+  .card img.cover.sky { height: 228px; }
+  .card img.cover.tide { height: 158px; }
+  .card img.cover.face { height: 230px; object-position: center 15%; }
+  .view.hp .masonry .card img.cover { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+  .card .pad { padding: 8px 8px 10px; }
+  .card h3 { margin: 0; font-size: 13px; line-height: 1.35; font-weight: 700; }
+  .card .excerpt { margin: 4px 0 0; color: #9a9a9a; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+  .tag { height: 16px; padding: 0 6px; border-radius: 8px; background: #f2f3f5; color: #8aa4c8; font-size: 10px; line-height: 16px; }
+  .meta { display: flex; align-items: center; gap: 4px; margin-top: 6px; color: #b0b0b0; font-size: 11px; }
+  .ava { width: 16px; height: 16px; border-radius: 50%; background: #d8d8d8; flex: none; }
+  .meta .num { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+
+  .bookrow { display: flex; gap: 10px; margin: 0 10px 8px; padding: 10px; background: #fff; border-radius: 12px; border: 0; width: calc(100% - 20px); text-align: left; color: inherit; }
+  .bookrow img, .fake-cover { width: 72px; height: 96px; border-radius: 6px; object-fit: cover; flex: none; }
+  .fake-cover { display: grid; place-items: end start; padding: 8px; color: #fff; font-weight: 750; font-size: 13px; line-height: 1.25; }
+  .bookrow h3 { margin: 0; font-size: 15px; }
+  .bookrow p { margin: 4px 0 0; color: #999; font-size: 12px; }
+  .bookrow .sub { margin-top: 8px; color: #bbb; font-size: 11px; }
+
+  .hot { break-inside: avoid; margin: 0 0 8px; background: #fff; border-radius: 10px; padding: 10px 8px 8px; }
+  .hot h3 { margin: 0 0 6px; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+  .hot li { display: flex; gap: 4px; font-size: 11px; color: #444; line-height: 1.65; list-style: none; }
+  .hot ol { margin: 0; padding: 0; }
+  .hot .tip { margin: 6px 0 0; text-align: center; color: #c0c0c0; font-size: 10px; line-height: 1.4; }
+  .hot .n { width: 14px; color: var(--orange); font-weight: 700; flex: none; }
+  .hot .go { width: 100%; margin-top: 6px; height: 28px; border: 0; border-radius: 14px; background: #fff3e6; color: var(--orange); font-size: 12px; font-weight: 650; }
+
+  .tabbar { flex: none; height: 56px; background: #fff; display: flex; border-top: 1px solid #f3f3f3; }
+  .tabbar button { flex: 1; border: 0; background: transparent; color: #9a9a9a; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .tabbar button.on { color: var(--blue); }
+  .tabbar button:disabled { cursor: default; opacity: 1; color: #9a9a9a; }
+  .tabbar button.on:disabled { color: var(--blue); }
+  .screen .tabbar svg { width: 22px; height: 22px; }
+  .screen .meta svg { width: 12px; height: 12px; }
+  .screen .act svg { width: 20px; height: 20px; }
+  .home-ind { width: 120px; height: 4px; border-radius: 3px; background: #111; margin: 0 auto 6px; flex: none; }
+
+  .topbar { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: #fff; flex: none; }
+  .topbar .icon { width: 32px; height: 32px; border: 0; background: transparent; display: grid; place-items: center; padding: 0; }
+  .topbar h1 { margin: 0; font-size: 16px; font-weight: 700; }
+  .topbar .spacer { flex: 1; }
+  .topbar.feed-top { position: relative; justify-content: space-between; }
+  .topbar.feed-top .seg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .feed-side { display: flex; align-items: center; }
+  .seg { display: flex; gap: 18px; font-size: 16px; }
+  .seg button { border: 0; background: transparent; color: #999; font-size: 16px; padding: 0; }
+  .seg button.on { color: #111; font-weight: 750; }
+  .follow { height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid #ddd; background: #fff; font-size: 13px; }
+  .follow.fill { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .follow.on { background: #222; color: #fff; border-color: #222; }
+  .avatar-sm { width: 28px; height: 28px; border-radius: 50%; background: #d5d5d5; }
+
+  .fab { position: absolute; right: 16px; bottom: 16px; width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--orange); color: #fff; font-size: 32px; line-height: 1; box-shadow: 0 8px 18px rgba(255,138,30,.35); z-index: 5; }
+
+  .more-nav { background: #fff; }
+  .sign-chip { position: relative; width: 44px; height: 44px; border: 0; border-radius: 22px; background: radial-gradient(circle at 40% 30%, #ffe9a8, #f0b030); color: #8a4b00; font-size: 11px; font-weight: 800; flex: none; }
+  .sign-chip i { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; }
+  .nav-h { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 10px; }
+  .nav-h b { font-size: 16px; }
+  .nav-h .links { display: flex; gap: 16px; }
+  .nav-h button { border: 0; background: transparent; color: var(--blue); font-size: 14px; padding: 0; }
+  .tag-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 16px 8px; }
+  .tag-grid button { height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: #f4f5f7; color: #666; font-size: 14px; }
+
+  .view.shelf { background: linear-gradient(180deg, #f3f6fb 0%, #f7f8fa 180px, #fff 180px); }
+  .shelf-top { justify-content: flex-start; gap: 16px; padding: 0 12px; background: transparent; }
+  .shelf-top .seg { gap: 16px; }
+  .shelf-sign { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 2px 16px 10px; }
+  .shelf-sign .days { text-align: right; font-size: 12px; color: #999; line-height: 1.25; }
+  .shelf-sign .days b { display: block; color: #222; font-size: 16px; }
+  .sign-btn { height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: var(--blue); color: #fff; font-size: 13px; }
+  .sign-btn.on { background: #e8e8e8; color: #888; }
+  .shelf-sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border-radius: 16px 16px 0 0; }
+  .shelf-filters { display: flex; align-items: center; gap: 18px; padding: 12px 16px 8px; }
+  .shelf-filters > button { border: 0; background: transparent; color: #888; font-size: 15px; padding: 0 0 6px; position: relative; }
+  .shelf-filters > button.on { color: #111; font-weight: 750; }
+  .shelf-filters > button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 2px; background: #111; }
+  .shelf-filters .side { margin-left: auto; display: flex; gap: 8px; }
+  .shelf-filters .side button { height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid #eee; background: #fff; color: #888; font-size: 12px; }
+  .shelf-book { display: flex; gap: 12px; width: 100%; border: 0; background: #fff; text-align: left; padding: 10px 16px; color: inherit; align-items: center; }
+  .shelf-book .fake-cover { width: 64px; height: 86px; border-radius: 4px; display: grid; place-items: center; color: #fff; font-weight: 750; font-size: 13px; flex: none; }
+  .shelf-book .info { min-width: 0; flex: 1; }
+  .shelf-book h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .shelf-book .upd { display: inline-block; margin-left: 6px; background: #ff4d6a; color: #fff; font-size: 10px; line-height: 16px; border-radius: 3px; padding: 0 4px; vertical-align: 2px; font-style: normal; font-weight: 650; }
+  .shelf-book p { margin: 4px 0 0; color: #999; font-size: 12px; }
+  .shelf-book .dot { border: 0; background: transparent; color: #ccc; font-size: 18px; padding: 0 0 0 8px; }
+
+  .draft-page { background: #f2f3f5; }
+  .draft-page .topbar { background: #f2f3f5; }
+  .draft-page .topbar h1 { flex: 1; text-align: center; font-size: 17px; font-weight: 650; }
+  .draft-page .masonry { padding-top: 10px; }
+  .draft-cap { margin-top: auto; flex: none; text-align: center; color: #c8c8c8; font-size: 12px; padding: 12px 0 20px; }
+
+  .taghead { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff; padding: 6px 16px 12px; }
+  .taghead h2 { margin: 0; font-size: 28px; letter-spacing: .5px; }
+  .taghead .count { margin: 0; color: #999; font-size: 12px; flex: none; }
+  .screen.hpbg .view.hp { background: linear-gradient(180deg, transparent 0 40px, rgba(223,227,234,.32) 86px, rgba(223,227,234,.7) 118px, #dfe3ea 156px, #e7ebf0 240px, #f2f3f5 430px, #f7f7f8 100%); }
+  .view.hp .hp-sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; background: transparent; }
+  .screen.hpbg .view.hp .tabs3, .screen.hpbg .view.hp .filters, .view.hp .scroller { background: transparent; }
+  .tabs3 { display: flex; justify-content: space-around; background: #fff; font-size: 15px; color: #888; }
+  .tabs3 button { border: 0; background: transparent; padding: 8px 0 10px; color: inherit; position: relative; font-size: 15px; }
+  .tabs3 button.on { color: #111; font-weight: 750; }
+  .tabs3 button.on::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 22px; height: 3px; margin-left: -11px; background: #111; border-radius: 2px; }
+  .filters { display: flex; align-items: center; gap: 12px; padding: 8px 12px; font-size: 13px; color: #888; background: var(--bg); position: relative; }
+  .filters button { border: 0; background: transparent; color: inherit; padding: 0; font-size: 13px; }
+  .filters button.on { color: #222; font-weight: 700; }
+  .filters .sort-pill { display: flex; flex: none; align-items: center; height: 26px; padding: 2px; border-radius: 13px; background: rgba(255,255,255,.78); }
+  .filters .sort-pill button { height: 22px; padding: 0 10px; border-radius: 11px; background: transparent; color: #8a8a8a; font-weight: 500; font-size: 13px; }
+  .filters .sort-pill button.on { background: #fff; color: #222; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .filters .rank { margin-left: auto; }
+  .popover { position: absolute; right: 12px; top: 32px; background: #fff; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 6; overflow: hidden; }
+  .popover button { display: block; width: 88px; height: 36px; border: 0; background: #fff; font-size: 13px; }
+  .popover button.on { color: var(--blue); }
+
+  .reader { background: #fff; }
+  .hero { position: relative; background: #ddd; }
+  .hero img { width: 100%; height: 280px; object-fit: cover; object-position: center 20%; display: block; }
+  .hero .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(transparent, #fff 78%); }
+  .badge { position: absolute; right: 10px; bottom: 10px; background: rgba(0,0,0,.45); color: #fff; font-size: 12px; border-radius: 10px; padding: 2px 8px; }
+  .reader h2 { margin: 0; padding: 12px 16px 0; font-size: 18px; line-height: 1.4; }
+  .hero h2 { position: absolute; left: 16px; right: 16px; bottom: 8px; padding: 0; z-index: 1; }
+  .copy { padding: 8px 16px 0; color: #8a8a8a; font-size: 15px; line-height: 1.75; }
+  .copy p { margin: 0 0 16px; }
+  .lock { padding: 4px 16px 8px; }
+  .lock-label { display: flex; align-items: center; gap: 10px; color: #ccc; font-size: 13px; margin-bottom: 12px; }
+  .lock-label i { flex: 1; height: 1px; background: #eee; }
+  .lock-actions { display: flex; gap: 10px; }
+  .pill { flex: 1; height: 40px; border-radius: 20px; border: 0; font-size: 14px; }
+  .pill.ghost { background: #e7f1fc; color: var(--blue); }
+  .pill.solid { background: var(--blue); color: #fff; }
+  .section-title { margin: 16px 16px 8px; font-size: 15px; }
+  .rel { display: flex; gap: 10px; margin: 0 16px; padding: 10px; background: #f7f7f7; border-radius: 12px; border: 0; text-align: left; color: inherit; width: calc(100% - 32px); }
+  .rel img { width: 64px; height: 86px; object-fit: cover; border-radius: 4px; }
+  .rel .brief { margin: 0; font-size: 12px; color: #999; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .rel .score { margin-top: 6px; font-size: 12px; color: #f5a623; }
+  .comment { display: flex; gap: 8px; padding: 8px 16px; }
+  .c-ava { width: 32px; height: 32px; border-radius: 50%; background: #ffd0dc; display: grid; place-items: center; color: #fff; font-size: 13px; flex: none; }
+  .c-name { color: #bbb; font-size: 12px; }
+  .c-text { font-size: 14px; margin-top: 2px; }
+  .c-date { color: #ccc; font-size: 12px; margin-top: 4px; }
+  .composer { flex: none; display: flex; align-items: stretch; gap: 4px; padding: 8px 6px 8px 12px; background: #fff; }
+  .composer input { flex: 1; height: auto; align-self: stretch; border: 0; border-radius: 20px; background: #f3f3f3; padding: 0 14px; font-size: 13px; }
+  .act { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #666; font-size: 11px; line-height: 1; padding: 0 2px; min-width: 40px; }
+  .act svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+  .act.on.like { color: #ff4d4f; }
+  .act.on.star { color: #f5a623; }
+  .act.on svg { fill: currentColor; }
+
+  .screen.dark .reader, .screen.dark .reader .composer, .screen.dark .status.darkbar { background: #000; color: #eee; }
+  .screen.dark .reader h2, .screen.dark .reader .topbar, .screen.dark .reader .topbar h1 { color: #f3f3f3; background: #000; }
+  .screen.dark .reader .copy { color: #c8c8c8; }
+  .screen.dark .reader .hero .fade { background: linear-gradient(transparent, #000 78%); }
+  .screen.dark .reader .follow { background: transparent; color: #eee; border-color: #666; }
+  .screen.dark .reader .composer input { background: #222; color: #eee; }
+  .screen.dark .reader .rel { background: #161616; }
+  .screen.dark .reader .act { color: #ddd; }
+
+  .mask { position: absolute; inset: 0; background: rgba(0,0,0,.45); z-index: 20; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 16px 16px 0 0; z-index: 21; padding-bottom: 8px; }
+  .sheet button { display: block; width: 100%; height: 52px; border: 0; background: #fff; border-bottom: 1px solid #f4f4f4; font-size: 16px; }
+  .sheet button.cancel { border-bottom: 0; color: #888; margin-top: 6px; }
+
+  .editor { background: #fff; }
+  .editor input.title, .editor textarea { width: 100%; border: 0; background: transparent; padding: 8px 16px; color: #222; }
+  .editor input.title { font-size: 18px; font-weight: 650; }
+  .editor input.title::placeholder, .editor textarea::placeholder { color: #ccc; }
+  .editor textarea { min-height: 88px; resize: none; font-size: 15px; line-height: 1.6; }
+  .etag { display: flex; gap: 6px; padding: 8px 16px; flex-wrap: wrap; }
+  .etag span, .etag button { height: 24px; padding: 0 8px; border-radius: 12px; background: #f3f4f6; color: #9aa; border: 0; font-size: 12px; }
+  .etag .add { background: #fff; border: 1px dashed #ddd; color: #bbb; }
+  .plus { width: 72px; height: 72px; margin: 8px 16px; border-radius: 8px; border: 0; background: #f3f4f6; color: #bbb; font-size: 28px; }
+  .rows { margin-top: 8px; }
+  .rows button { width: 100%; height: 46px; border: 0; background: #fff; display: flex; align-items: center; gap: 8px; padding: 0 16px; font-size: 14px; color: #444; }
+  .rows button span { margin-left: auto; color: #b0b0b0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .editor-bar { display: flex; gap: 8px; padding: 8px 12px; background: #fff; align-items: center; }
+  .editor-bar button { height: 36px; border-radius: 18px; border: 1px solid #eee; background: #fff; padding: 0 14px; font-size: 13px; color: #666; }
+  .editor-bar .pub { margin-left: auto; min-width: 132px; background: var(--blue); color: #fff; border-color: var(--blue); font-size: 15px; }
+
+  .banner { margin: 8px 12px; height: 86px; border-radius: 10px; overflow: hidden; }
+  .banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pics { display: flex; gap: 8px; padding: 4px 16px 8px; }
+  .pics button { width: 72px; height: 72px; border: 0; border-radius: 8px; background: #f3f4f6; color: #bbb; font-size: 28px; }
+  button.avatar-sm { border: 0; padding: 0; }
+  .tools { display: flex; margin: 0 12px 8px; background: #fff; border-radius: 12px; padding: 12px 0; }
+  .tools div, .tools button { flex: 1; border: 0; background: transparent; text-align: center; font-size: 11px; color: #666; padding: 0; }
+  .tools i { display: block; font-style: normal; font-size: 18px; margin-bottom: 4px; }
+  .view.write { background: linear-gradient(180deg, #c5dffc 0%, #d7e9fc 14%, #e7f2fc 42%, #f4f8fc 100%); }
+  .write-switch { display: flex; justify-content: center; gap: 28px; padding: 2px 18px 8px; }
+  .write-switch button { border: 0; background: transparent; color: #999; font-size: 16px; padding: 4px 0 8px; position: relative; }
+  .write-switch button.on { color: #111; font-weight: 750; }
+  .write-switch button.on::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 18px; height: 3px; margin-left: -9px; border-radius: 2px; background: #111; }
+  .view.write .masonry.fixed-cards, .view.draft-page .masonry.fixed-cards { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 236px; gap: 8px; columns: unset; }
+  .view.write .masonry.fixed-cards .card, .view.draft-page .masonry.fixed-cards .card { height: 236px; min-height: 0; margin: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .view.write .masonry.fixed-cards .card img.cover, .view.draft-page .masonry.fixed-cards .card img.cover { height: 132px; flex: none; object-fit: cover; }
+  .view.write .masonry.fixed-cards .card .pad, .view.draft-page .masonry.fixed-cards .card .pad { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .view.write .masonry.fixed-cards .card h3, .view.draft-page .masonry.fixed-cards .card h3 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: none; }
+  .view.write .masonry.fixed-cards .card .excerpt, .view.draft-page .masonry.fixed-cards .card .excerpt { -webkit-line-clamp: 2; flex: none; }
+  .view.draft-page .masonry.fixed-cards .card .excerpt { -webkit-line-clamp: 8; flex: 1; min-height: 0; color: #666; font-size: 12px; line-height: 1.55; }
+  .view.draft-page .masonry.fixed-cards .card:has(img.cover) .excerpt { -webkit-line-clamp: 2; flex: none; }
+  .view.write .masonry.fixed-cards .card .meta, .view.draft-page .masonry.fixed-cards .card .meta { margin-top: auto; flex: none; }
+  .view.draft-page .masonry.fixed-cards .card .meta { flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1.35; }
+  .view.draft-page .masonry.fixed-cards .card .draft-when,
+  .view.draft-page .masonry.fixed-cards .card .draft-count { display: block; flex: none; white-space: nowrap; }
+  .notice-bar { display: flex; align-items: center; min-width: 0; }
+  .notices { display: flex; gap: 8px; padding: 8px 4px 8px 12px; overflow: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+  .notices::-webkit-scrollbar { display: none; }
+  .notices span { flex: none; background: #fff; border-radius: 14px; padding: 4px 10px; font-size: 12px; color: #666; }
+  .notices .dot { color: #ff4d4f; }
+  .notice-bin { flex: none; width: 32px; height: 32px; margin-right: 6px; border: 0; background: transparent; color: #999; padding: 0; display: grid; place-items: center; }
+  .work { display: flex; gap: 10px; margin: 0 12px 8px; background: #fff; border-radius: 12px; padding: 10px; border: 0; width: calc(100% - 24px); text-align: left; color: inherit; }
+  .work h3 { margin: 0; font-size: 15px; }
+  .work p { margin: 6px 0 0; color: #999; font-size: 12px; }
+  .silk { display: inline-block; margin-left: 6px; color: #7aa2ff; background: #eef3ff; border-radius: 8px; padding: 0 6px; font-size: 11px; }
+  .float-btn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); height: 40px; min-width: 148px; border: 0; border-radius: 20px; color: #fff; font-size: 15px; background: linear-gradient(90deg, #3583d1, #9ec9f4); box-shadow: 0 8px 16px rgba(53,131,209,.25); }
+
+  .screen[data-page="mine"] .view { top: -28px; }
+  .screen[data-page="mine"] .status { position: relative; z-index: 6; }
+  .mine-head { position: relative; overflow: hidden; background: #fff; padding: 36px 16px 44px; }
+  .mine-head::before {
+    content: "";
+    position: absolute;
+    inset: -48px;
+    background: url("assets/cover-lake.jpg") center 38% / 740px auto no-repeat;
+    filter: blur(24px);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .mine-head::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, transparent 0%, transparent calc(100% - 52px), rgba(255,255,255,.2) calc(100% - 38px), rgba(255,255,255,.62) calc(100% - 22px), #fff calc(100% - 6px), #fff 100%),
+      linear-gradient(180deg, rgba(16, 20, 26, .34), rgba(16, 20, 26, .26) 62%, rgba(16, 20, 26, 0) calc(100% - 32px));
+  }
+  .mine-head .mine-user, .mine-head .mine-stats { position: relative; z-index: 2; }
+  .mine-head .manage-btn { z-index: 3; }
+  .manage-btn { position: absolute; top: 30px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 16px; padding: 0; background: rgba(255,255,255,.22); color: #fff; display: grid; place-items: center; }
+  .manage-pop { position: absolute; top: 66px; right: 12px; z-index: 7; min-width: 132px; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.14); overflow: hidden; }
+  .manage-pop button { display: block; width: 100%; height: 44px; border: 0; border-bottom: 1px solid #f3f3f3; background: #fff; text-align: left; padding: 0 14px; font-size: 14px; color: #222; }
+  .manage-pop button:last-child { border-bottom: 0; }
+  .mine-user { display: flex; gap: 12px; align-items: center; }
+  .mine-head .big { width: 72px; height: 72px; border-radius: 50%; background: #e8e8e8 center / cover no-repeat; border: 2px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,.12); flex: none; }
+  .mine-head b { font-size: 18px; color: #fff; }
+  .mine-head p { margin: 4px 0 0; color: rgba(255,255,255,.88); font-size: 12px; }
+  .mine-stats { display: flex; margin-top: 16px; }
+  .mine-stats div { flex: 1; text-align: center; color: #fff; }
+  .mine-stats b { display: block; font-size: 18px; line-height: 1.2; }
+  .mine-stats span { font-size: 11px; opacity: .85; }
+  .empty { text-align: center; color: #bbb; padding: 40px 16px; font-size: 13px; }
+  .mode-link { border: 0; background: transparent; color: var(--blue); font-size: 14px; font-weight: 700; padding: 0 4px; }
+  .mode-row { display: flex; gap: 12px; padding: 28px 16px; overflow: auto; scrollbar-width: none; }
+  .mode-row::-webkit-scrollbar { height: 0; }
+  .mode-card { width: 132px; height: 220px; border: 0; border-radius: 16px; flex: none; color: #222; font-size: 15px; font-weight: 750; display: flex; align-items: flex-end; justify-content: center; padding: 0 8px 18px; box-shadow: 0 8px 20px rgba(0,0,0,.06); }
+  .drawer .mode-row { gap: 8px; padding: 0 0 4px; }
+  .drawer .mode-card { flex: 1; width: auto; min-width: 0; height: 96px; font-size: 13px; padding: 0 4px 12px; }
+  .drawer .mode-card.on { box-shadow: inset 0 0 0 2px var(--blue), 0 8px 20px rgba(0,0,0,.06); }
+  .drawer { position: absolute; left: 8px; right: 8px; bottom: 8px; background: #fff; border-radius: 18px; z-index: 22; padding: 6px 12px 12px; box-shadow: 0 -8px 30px rgba(0,0,0,.12); }
+  .drawer .handle { display: block; width: 36px; height: 4px; border-radius: 2px; background: #e6e6e6; margin: 6px auto 4px; }
+  .drawer h3 { margin: 4px 0 10px; text-align: center; font-size: 16px; }
+  .opt-card { display: block; width: 100%; min-height: 48px; margin: 0 0 8px; border: 0; border-radius: 12px; background: #f5f6f8; text-align: left; padding: 0 14px; font-size: 15px; }
+  .opt-card.on { background: #e7f1fc; color: var(--blue); font-weight: 700; }
+  .drawer { max-height: calc(100% - 72px); overflow: auto; }
+  .drop-mask { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.45); z-index: 20; }
+  .drop-panel { position: absolute; left: 0; right: 0; z-index: 22; max-height: 62%; overflow: auto; background: #fff; border-radius: 0 0 16px 16px; box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+  .sched-row { display: flex; align-items: center; justify-content: space-between; min-height: 56px; border-bottom: 1px solid #f2f2f2; font-size: 16px; }
+  .sched-row b { font-weight: 650; }
+  .switch { width: 52px; height: 32px; border: 0; border-radius: 16px; background: #e6e6e6; position: relative; padding: 0; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.18); transition: left .2s; }
+  .switch.on { background: #ff9a1f; }
+  .switch.on::after { left: 22px; }
+  .date-hit { position: relative; color: #9a9a9a; font-size: 15px; }
+  .date-hit input { position: absolute; inset: 0; opacity: 0; }
+  .drawer-primary { display: block; width: 100%; height: 48px; margin-top: 16px; border: 0; border-radius: 24px; background: var(--blue); color: #fff; font-size: 17px; font-weight: 700; }
+  .kind-switch, .pay-modes { display: flex; gap: 10px; margin: 4px 0 12px; }
+  .kind-switch button, .pay-modes button { flex: 1; height: 44px; border-radius: 12px; border: 1px solid transparent; background: #f3f4f6; font-size: 15px; color: #333; position: relative; }
+  .kind-switch button.on { background: #e7f1fc; color: var(--blue); font-weight: 700; }
+  .pay-modes button.on { background: #fff1f0; border-color: #ff4d4f; color: #ff4d4f; font-weight: 700; }
+  .pay-modes button.on::after { content: "✓"; position: absolute; right: 0; bottom: 0; width: 18px; height: 16px; border-radius: 8px 0 10px 0; background: #ff4d4f; color: #fff; font-size: 11px; line-height: 16px; }
+  .pick-list { max-height: 240px; overflow: auto; }
+  .pick-row, .col-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; border: 0; border-bottom: 1px solid #f4f4f4; background: #fff; text-align: left; font-size: 15px; padding: 0 2px; color: #222; }
+  .pick-row.on, .col-row.on { color: var(--blue); font-weight: 700; }
+  .pick-row i, .col-row .mark { margin-left: auto; color: var(--blue); font-style: normal; }
+  .col-row .del { margin-left: auto; border: 0; background: transparent; color: #ff4d4f; font-size: 14px; padding: 8px 0 8px 12px; }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
+  .drawer-head h3 { margin: 0; text-align: left; }
+  .text-btn { border: 0; background: transparent; color: var(--blue); font-size: 14px; padding: 0; }
+  .qty-row { display: flex; align-items: center; min-height: 52px; font-size: 15px; }
+  .stepper { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .stepper button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #eee; background: #fff; color: #666; font-size: 18px; line-height: 1; }
+  .stepper b { min-width: 36px; text-align: center; font-weight: 650; }
+  .drawer .hint { margin: 4px 0 8px; color: #b0b0b0; font-size: 12px; line-height: 1.5; }
+  .drawer-actions { display: flex; margin: 8px -12px -12px; border-top: 1px solid #f0f0f0; }
+  .drawer-actions button { flex: 1; height: 48px; border: 0; background: #fff; font-size: 16px; color: #888; }
+  .drawer-actions button.ok { color: #ff4d4f; font-weight: 700; border-left: 1px solid #f0f0f0; }
+  .col-form input, .col-form textarea { width: 100%; border: 0; border-radius: 12px; background: #f5f6f8; padding: 12px; margin: 6px 0; font-size: 15px; color: #222; }
+  .col-form textarea { min-height: 72px; resize: none; }
+  .cover-pick { width: 72px; height: 72px; margin: 6px 0 10px; border: 0; border-radius: 8px; background: #f3f4f6 center / cover no-repeat; color: #aaa; font-size: 12px; }
+  .link-count { margin: 0 0 8px; color: #999; font-size: 12px; }
+
+  .vinyl {
+    position: absolute; right: 14px; bottom: 168px; z-index: 8; width: 52px; height: 52px; border: 0; border-radius: 50%; padding: 0;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 8px, #111 8.5px 12px, #2a2a2a 12.4px 13px, #0d0d0d 13.4px 18px, #222 18.4px 19px, #0a0a0a 19.4px 100%),
+      var(--cover, #e10600) center / 18px 18px no-repeat;
+    box-shadow: 0 6px 14px rgba(0,0,0,.28);
+    animation: spin 3.2s linear infinite paused;
+  }
+  .vinyl.on { animation-play-state: running; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: absolute; left: 50%; bottom: 86px; transform: translateX(-50%); background: rgba(0,0,0,.78); color: #fff; font-size: 13px; padding: 8px 14px; border-radius: 16px; opacity: 0; pointer-events: none; transition: .2s; z-index: 40; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 760px) { body { flex-direction: column; } .panel { width: min(390px, 100%); } }
+  @media (prefers-reduced-motion: reduce) { .vinyl { animation: none; } }
+</style>
+</head>
+<body>
+<aside class="panel">
+  <h2>外围控制</h2>
+  <p>夜间模式切换阅读页。已放入《暧昧》，阅读页右侧黑胶和这里的播放键都可以听。</p>
+  <div class="row">
+    <button class="tbtn on" type="button" data-theme="light">日间模式</button>
+    <button class="tbtn" type="button" data-theme="dark">夜间模式</button>
+  </div>
+  <button class="tbtn primary" type="button" id="uploadBtn">上传音乐</button>
+  <input id="file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
+  <p class="file-name" id="fileState">当前音乐：暧昧</p>
+  <a class="tbtn" href="studio.html" style="display:flex;align-items:center;justify-content:center;margin-top:8px;text-decoration:none;color:inherit">短篇生成面板</a>
+  <div class="row" style="margin-top:8px">
+    <button class="tbtn" type="button" id="playBtn">播放</button>
+    <button class="tbtn" type="button" id="pauseBtn">暂停</button>
+  </div>
+</aside>
+
+<div class="device">
+  <div class="screen" id="screen" data-page="home">
+    <div class="status" id="status">
+      <div class="status-left"><span id="clock">14:07</span></div>
+      <div class="status-icons" aria-hidden="true">
+        <svg viewBox="0 0 18 12" width="16" height="11"><rect x="0" y="7.5" width="3" height="4.5" rx=".4" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx=".4" fill="currentColor"/><rect x="10" y="2.5" width="3" height="9.5" rx=".4" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx=".4" fill="currentColor"/></svg>
+        <svg viewBox="0 0 16 12" width="14" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 4.8a9 9 0 0 1 14 0"/><path d="M3.4 7.4a5.4 5.4 0 0 1 9.2 0"/><path d="M8 10.2h0" stroke-width="2.4"/></svg>
+        <svg viewBox="0 0 27 13" width="22" height="11"><rect x=".6" y=".6" width="22" height="11.8" rx="2.4" fill="none" stroke="currentColor"/><rect x="2.2" y="2.2" width="16" height="8.6" rx="1" fill="currentColor"/></svg>
+      </div>
+    </div>
+    <div class="stage" id="stage"></div>
+    <nav class="tabbar" id="tabbar"></nav>
+    <div class="home-ind" id="homeInd"></div>
+    <button class="vinyl" type="button" id="vinyl" hidden aria-label="播放或暂停音乐"></button>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</div>
+<audio id="audio" preload="metadata" src="https://static-cos.mureka.cn/cos-prod/song/audio/20261022/160664b9-6656-4e81-bfce-9942fafbe62c.mp3"></audio>
+<script>
+const TITLE = "你怕德拉科·马尔福";
+const BLURB = "这件事你没跟任何人说过。魔法部的人提起他，用的词都很体面：冷、挑剔、不好说话。你总在那一眼之前先低下头。";
+const REL_BRIEF = "马尔福家能一家人整整齐齐的存活并且战后无狱无罪甚至更有钱了靠的是他们自己赚的是德拉科没有指认三人组 靠的是纳西莎哈利波特是魔法界的救世主……";
+const ARTICLE = `你怕德拉科·马尔福。
+
+这件事你没跟任何人说过。魔法部的人提起他，用的词都很体面：冷、挑剔、不好说话。战争结束七年，他早已不是霍格沃茨走廊里那个扬着下巴的少年，可纯血统的旧姓氏仍像一层薄冰，他走在上面，步子很稳，肩背始终挺直。你在魔法法律执行司的文书处抄写卷宗，今年二十四岁，偶尔要把文件送到他那一层。敲门，等那声很淡的“进来”，再把羊皮纸放在桌角。他的眼睛是浅灰色的，抬起来时像冬天的河面。你总在那一眼之前先低下头。
+
+你以为他讨厌你。因为他从不寒暄。因为他会把你放歪的文件夹默默转正，指尖白而稳，像在纠正一件不够格的东西。有一次你在走廊遇见他，他停了一停，像要说话，最终只是侧身让路。皮鞋声远了，你才发现自己一直屏着呼吸。你把这些都理解成嫌弃。高傲的人连多看你一秒都吝啬。你这样告诉自己，然后尽量绕开他常走的那条楼梯。
+
+德拉科并不知道你在躲到什么程度。他只知道自己每次看见你，舌尖会先发紧。你放下卷宗时，指尖会在桌沿停一下，留下很轻的温度。他等门掩上，才允许自己把那份文件拉近，看你抄写时习惯性收紧的字迹。墨水干得整齐，某个笔画却微微出头，像你匆忙里仍想把事情做好。他想过很多开口的方式。早啊。今天的茶还热。你不用走那么快。每一句都停在喉结里。马尔福不该显得急切。他一遍遍提醒自己，直到这句话变成一种拖延。
+
+他的喜欢因此长得很慢，也藏得很深。你加班时他会“碰巧”留到同样的钟点，路过文书处，目光在你弯着的背上停两秒，又强迫自己走开。你打翻墨水瓶的那个下午，他比同事先一步挥了魔杖，污渍消失，他只说“小心”。你道谢时声音发颤，他便再不多留。他回到办公室，掌心还记得你惊惶看向他的那一眼。那一眼没有喜欢，只有怕。他恨自己从前造就的形象，却不知道怎么把壳拆开给你看。
+
+改变发生在一个普通的周四。
+
+中庭的光从玻璃顶落下来，你抱着一摞刚盖过章的许可状，被人从侧面叫住。科林·特纳，交通司的，比你大两岁，笑起来有酒窝，说话很慢，像生怕吓到你。“我喜欢你很久了。”他说，耳朵红着，“如果你愿意，这个周末可以一起喝杯茶。不勉强。你考虑一下也行。”
+
+你愣住。手里的纸页微微发抖。你还没想好怎么回答，余光先看见了楼梯口的银白。
+
+德拉科站在那里。他本来要下楼，一只手还搭在扶手上。他看见科林面对你的姿态，看见你怔住的侧脸，胸口像被什么狠狠攥了一下。那些他告诉自己“再等等”的日子忽然变得可笑。再等等，你就会坐在别人对面，把笑分给别人。他受不了这个画面。它比拒绝本身更先到来，也更让他失态。
+
+他走下来的步子比平时快。科林朝他点头，他几乎没回。他在你身侧停下，声音压得很低，只有你听得见：“跟我来。就一会儿。”
+
+你下意识退了半步。他看见了。眉心皱起来，又很快松开，像在强迫自己别再用那种会让你害怕的语气。“求你。”这两个字轻得不像他。
+
+你跟着他走到中庭侧面的空廊。窗外是伦敦潮湿的天。他站得离你有一臂远，手指却握紧又松开，骨节微微发白。
+
+“他跟你说什么了？”
+
+“他约我喝茶。”
+
+德拉科的喉结滚动了一下。他笑了一声，很短，没有笑意。“我该更早说的。”他看着你，灰色的眼睛里没有你熟悉的那层冰，只剩下一种几乎失态的认真，“我喜欢你。不是今天才喜欢。从你第一次把卷宗放到我桌上、又飞快逃走的那天就喜欢。你每次进来，我都想让你多留一会儿。可你总是逃。我不知道怎么靠近一个看见我就会害怕的人。我怕我一开口，你就再也不来了。”
+
+风从廊柱间穿过去。你抱着文件，指节发白。他的耳朵红了，仍强迫自己把话说完。
+
+“你不用现在回答。”声音低下去，带着一点你从没听过的软，“只要别这么快答应别人。给我一个机会。我会追你。用你能接受的方式。你怕的话，我就站远一点。你不想见我，我就只把茶放在门口。可你得知道，我不是一时兴起。”
+
+你点了点头。自己也不知道在点什么。科林还在中庭里等。你后来只跟科林说了谢谢，周末没有茶。回到工位时，心跳仍乱。你反复想起德拉科说“求你”时低下去的眼睫。那样的人也会求人。这个事实轻轻撞开了你心里那层怕。
+
+从那天起，他真的开始追你。
+
+他不再只说“进来”。你送文件时，桌上会多一杯温度刚好的红茶，杯子推到你手边，他假装在看报告。“顺路泡的。”他说。你知道八楼的茶水间并不顺路。茶里放了一点蜂蜜，正好是你能接受的甜。你不知道他问过文书处的姑娘你喜欢什么，问的时候耳朵也红，还再三叮嘱对方别说是他问的。
+
+他开始在傍晚等你。不进你的办公室，只站在走廊尽头，袍角被风吹起一角。“一起走去飞路网。”邀请永远像询问，句尾轻轻往上，“如果你愿意。”
+
+你愿意的次数一天比一天多。起初你还是怕，怕他忽然恢复那种高傲的沉默，怕这只是他赢过别人的方式。可他把害怕这件事记得很清楚。人多的地方他不碰你。你皱眉时他会先退开半步，问“是不是太近了”。他给你带蜂蜜蛋糕，附一张纸条，字迹比他本人老实得多：今天的会议很烦。想到你可能会笑，就没那么烦了。
+
+有一天下雨。你没带伞，站在正门檐下，看着地面的水洼发愁。黑伞忽然倾斜过来，罩住你，也罩住他肩头的一小块雨。他的袖口湿了，语气却稳：“我送你到飞路网。伞够两个人。如果你愿意靠过来一点的话。”
+
+你靠过去。手臂隔着袍料轻轻相贴。他的呼吸明显乱了一拍，伞却举得很稳，一点雨都不让它落到你脸上。走到壁炉前，他没有进火焰。只把伞往你手里送，又在你抓住伞柄时没有立刻松开。四指相叠的那几秒里，他看着你，声音很轻：“今天也可以算我追到你了吗？”
+
+你耳尖发热，点了点头。他这才松开，唇角慢慢弯起来。那个笑很浅，却没有半分对外人的矜持，像只做给你看。
+
+你开始分得清他的冷。那不是对着你的。那是他不知怎么把喜欢说出口时，用来撑住自己的壳。壳一旦裂开，里面的人会因为你晚了十分钟而在飞路网旁边来回走。看见你出现，又立刻站直，装作只是刚好路过。
+
+你问他：“你是在等我吗？”
+
+他耳根红了，仍点头。“是。可以叫我德拉科。如果你愿意。”
+
+你愿意。你开始叫他的名字时，他会沉默一两秒，像要把这两个字含在嘴里暖一暖，然后才答你。他追你的方式黏，却又小心。午休他把切好的苹果放在你桌上，自己坐在对面，看你吃掉第一片才肯动叉子。你说太甜，他把自己那份里偏酸的推给你，理所当然得像这是他的职责。同事从玻璃外经过，他恢复成那副淡淡的神情，膝盖却在桌下轻轻碰一下你的膝盖，仿佛在说：对外我仍是那样，对你不是。
+
+醉的那一天，是交通司的小型庆功。你本不想去，科林也在。德拉科说“我陪你”，于是你去了。大厅里黄油啤酒和火焰威士忌混在一起。他平时克制，那晚却被几位旧识找上，一杯接一杯。你看见他推拒，看见他仍然喝了。他的脸颊慢慢泛起薄红，说话时尾音比白天长，看你的次数也比白天多。每一次视线落过来，都像在确认你还站在他能看见的地方。
+
+你提前离席，到露台上吹风。伦敦的夜有一点冷。没多久，门被轻轻推开。德拉科走出来，步子慢，银发被风吹乱了一缕。他在你旁边停下，没有靠得很近，酒气却温热地漫过来。灰色的眼睛亮，又有些湿。
+
+“你还在怕我吗？”他问。
+
+你摇头。这次是真的。
+
+“那就好。”他喃喃，手指抬起来，在离你脸颊一寸的地方停住，“我可以碰你吗？”
+
+“可以。”
+
+他的指腹贴上你的脸，很轻，像在确认你是真的。拇指慢慢蹭过你的颧骨，又舍不得离开。他靠近了一点，呼吸落在你唇边，声音哑哑的，几乎是恳求。
+
+“亲我一下。或者让我亲你。求你了。”
+
+你能感觉到他在抖。不是高傲，是怕你拒绝。醉意把他平时那些体面的句子都拆掉了，只剩下最直白的一句。他的额头几乎要碰到你的，仍留着最后一线距离，把选择放在你手里。
+
+“我知道我喝了酒。”他又说，含糊，却认真，“你要是不愿意，就推开我。我明天会醒，会不好意思，可我还是会再问你一次。今晚这一下，我想要。很想。想了太久了。”
+
+你没有退。你抬起手，揪住他礼服袍的前襟，让他低下头。这个吻很短，软，带着火焰威士忌淡淡的辛辣，和他小心翼翼不敢加深的克制。他发出一声模糊的鼻音，像终于把心放下来。唇分开时他没有走远，额头抵着你的额头，呼吸又热又乱。
+
+“再一下。”他黏糊糊地贴着你说，“就一下。我保证不欺负你。你要是晕，我就只吻到这里。”
+
+他说着，吻落在你的嘴角，轻得像问句。你没有推开。你偏过头，把第二个吻还给他。这次更慢。他笑了一下，尾音发颤，双手才敢环上你的腰，把你拢进怀里。下巴搁在你发顶，闷闷地重复：“我喜欢你。很喜欢。你别答应别人。茶我会继续泡。雨我也会继续送。你可以怕别人，别怕我。”
+
+“我不答应别人。”你说，脸埋在他胸前，声音被袍料挡住，仍被他听清了。
+
+他紧紧抱着你，像怕一松手，这个夜晚就会醒成一场他不敢再提的梦。露台的风很冷，他的手臂却热。你站在他怀里，忽然觉得从前那些让你害怕的沉默，不过是一个人喜欢到不知所措，却还是每天把红茶推到你手边，等你愿意靠近的那一天。
+
+他后来又含含糊糊地索要了第三个吻，只落在你眉心。然后他把脸埋进你的颈窝，心满意足地哼了一声，像一只终于被允许粘人的猫。“记住了。”他小声说，“这是你给我的。明天我醒着，还要你再给一次。”`.trim().split(/\n\n+/);
+const LAKE = "assets/cover-lake.jpg";
+const NIGHT = "assets/cover-night.jpg";
+const HOT = ["谁给我推来张拍立...","谁给我推来张拍立...","决战攻嬷之巅","决战攻嬷之巅","时代少年团是不是...","时代少年团是不是...","热点话题八个字...","热点话题八个字...","热点话题八个字...","热点话题八个字..."];
+
+const screen = document.getElementById("screen");
+const stage = document.getElementById("stage");
+const tabbar = document.getElementById("tabbar");
+const audio = document.getElementById("audio");
+const vinyl = document.getElementById("vinyl");
+let page = "home";
+let backTo = "home";
+let night = false;
+let followed = false;
+let liked = false, starred = false;
+let likeN = 1658, starN = 1658, commentN = 1658;
+let rankOpen = false;
+let rank = "周榜";
+let writeMode = "books";
+let editorMode = "article";
+let editorCover = "";
+let editorPics = [];
+const DRAFT_TEXT = "你怕德拉科·马尔福。这件事你没跟任何人说过。魔法部的人提起他，用的词都很体面：冷、挑剔、不好说话。你总在那一眼之前先低下头。中庭的光从玻璃顶落下来，你抱着一摞刚盖过章的许可状，被人从侧面叫住。";
+let drafts = [
+  { id: 1, title: "", body: DRAFT_TEXT, words: DRAFT_TEXT.length, mode: "article", at: Date.now() - 86400000 },
+  { id: 2, title: "", body: "", words: 0, mode: "image", img: LAKE, at: new Date(2026, 8, 2, 18, 50).getTime() }
+];
+let shelfTab = "书架";
+let shelfFilter = "全部";
+let signDays = 0;
+let signedToday = false;
+let collectedPosts = [];
+const SHELF_BOOKS = [
+  { title: "快穿之所有人都爱她", author: "云儿小乖乖", progress: "1章/218章", latest: "更新至：太子的刁蛮村姑皇后 37", update: true, done: false, star: true, color: "#c45c4a", mark: "快穿" },
+  { title: "应见陇头梅", author: "宓夏", progress: "1章/56章", latest: "更新至：8番外：追夫之路", update: true, done: false, star: false, color: "#8d2a34", mark: "陇头" },
+  { title: "综影视：明月皎皎", author: "春水煎茶io", progress: "5章/3685章", latest: "更新至：性转无双篇观影 16", update: true, done: false, star: true, color: "#1d4e89", mark: "明月" },
+  { title: "快穿之合欢诱心录", author: "黄金满仓", progress: "1章/248章", latest: "更新至：皇叔我原谅你 19", update: false, done: false, star: false, color: "#c9a27a", mark: "合欢" },
+  { title: "余念寄空尘", author: "街角的便利店", progress: "1章/54章", latest: "更新至：第54章 私宅", update: true, done: true, star: false, color: "#2f5d50", mark: "余念" }
+];
+let homeTab = "推荐";
+let hpTab = "社区";
+let readerMode = "text";
+let mineTab = "作品";
+let createStyle = "";
+const postOpts = { time: "关闭", bgm: "未设置", link: "未关联", pay: "关闭", collection: "未添加", visible: "公开可见" };
+const LINK_BOOKS = ["穿成龙族弃女我杀穿龙境", "你怕德拉科·马尔福", "柳智敏 ccc"];
+const LINK_AGENTS = ["德拉科·马尔福", "哈利·波特", "沈星回"];
+let linked = [];
+let payMode = "coin";
+let payQty = 10;
+let scheduleOn = false;
+let scheduleAt = new Date();
+let colSeq = 3;
+let pickedCol = 0;
+let collections = [
+  { id: 2, name: "马尔福家", intro: "", cover: "", at: 2 },
+  { id: 1, name: "梦女向短篇", intro: "", cover: "", at: 1 }
+];
+const HOME_CHIPS = ["角色广场", "推荐", "社区", "影视同人", "明星同人", "动漫同人", "更多"];
+const OPTS = {
+  time: { label: "定时发布", icon: "⏱", choices: ["关闭", "今晚 20:00", "明天 08:00", "周六 12:00"] },
+  bgm: { label: "设置bgm", icon: "♫", choices: ["未设置", "《暧昧》", "从本地上传"] },
+  link: { label: "关联内容", icon: "⚙", choices: ["未关联", "你怕德拉科·马尔福", "恋与深空：深空皆予你", "听潮阁：当伪音误入男厅后"] },
+  pay: { label: "付费解锁", icon: "🎁", choices: ["关闭", "赠送礼物解锁", "会员解锁"] },
+  collection: { label: "添加合集", icon: "▤", choices: ["未添加", "马尔福家", "梦女向短篇", "新建合集"] },
+  visible: { label: "可见范围", icon: "◎", choices: ["公开可见", "仅粉丝可见", "仅互关可见", "仅自己可见"] }
+};
+let objectUrl = null;
+let toastTimer = 0;
+let trackTitle = "暧昧";
+const TRACK_COVER = "https://static-cos.mureka.cn/cos-prod/skm/image/20261022/4KYQWXtSbZPiJpUVS5enfc.jpeg";
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1600);
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function tick() {
+  const d = new Date();
+  document.getElementById("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+tick(); setInterval(tick, 10000);
+
+function icon(name) {
+  const paths = {
+    home: '<path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5z"/>',
+    shelf: '<path d="M6 4h3v16H6zM11 4h3v16h-3zM16 7h3v13h-3z"/>',
+    plaza: '<path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16.5 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3.5 19c.4-2.4 2.4-4 4.5-4s4.1 1.6 4.5 4M13 15.2c1.4-.4 2.9-.2 4 .8.9.8 1.5 1.9 1.7 3"/>',
+    pen: '<path d="M4 20h4l10-10-4-4L4 16v4zM13 7l4 4"/>',
+    me: '<circle cx="12" cy="8" r="3.2"/><path d="M5 19.5c1.2-3 3.6-4.5 7-4.5s5.8 1.5 7 4.5"/>',
+    back: '<path d="M14.5 5.5 8 12l6.5 6.5"/>',
+    search: '<circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/>',
+    heart: '<path d="M12 19s-6.2-3.8-8.2-7.4C2.2 8.8 3.3 6 6.2 5.3 8 4.8 9.4 5.5 12 8.2c2.6-2.7 4-3.4 5.8-2.9 2.9.7 4 3.5 2.4 6.3C18.2 15.2 12 19 12 19z"/>',
+    star: '<path d="m12 3.6 2.2 4.8 5.2.5-4 3.5 1.2 5.1L12 15.2 7.4 17.5 8.6 12.4 4.6 8.9l5.2-.5L12 3.6z"/>',
+    chat: '<path d="M6 6.5h12.2A1.8 1.8 0 0 1 20 8.3v6a1.8 1.8 0 0 1-1.8 1.8H12l-4 2.6v-2.6H6A1.8 1.8 0 0 1 4.2 14.3v-6A1.8 1.8 0 0 1 6 6.5z"/>',
+    share: '<path d="M14 5h5v5M19 5 10 14M17 13.5V18a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4.5"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">${paths[name]}</svg>`;
+}
+
+function shelfHtml() {
+  return `<button class="bookrow" data-open="text"><img src="${NIGHT}" alt=""><div><h3>${TITLE}</h3><p>连载至第171章</p><p class="sub">收藏 1778 · 继续阅读</p></div></button>
+      <button class="bookrow" data-open="photo"><img src="${LAKE}" alt=""><div><h3>${TITLE}</h3><p>图文 · 1/9</p><p class="sub">熊猫小判官</p></div></button>`;
+}
+function setPic(el, url) {
+  el.dataset.src = url;
+  el.style.backgroundImage = `url("${url}")`;
+  el.style.backgroundSize = "cover";
+  el.style.backgroundPosition = "center";
+  el.textContent = "";
+}
+function pickEditorImage(onPick) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    onPick(URL.createObjectURL(file));
+  });
+  input.click();
+}
+function paintEditorImages() {
+  const cover = document.getElementById("addCover");
+  if (cover && editorCover) setPic(cover, editorCover);
+  stage.querySelectorAll(".add-pic").forEach((el, i) => { if (editorPics[i]) setPic(el, editorPics[i]); });
+}
+function card(opts) {
+  const img = opts.img ? `<img class="cover" src="${opts.img}" alt="">` : "";
+  const excerpt = opts.excerpt ? `<p class="excerpt">${opts.excerpt}</p>` : "";
+  const tags = (opts.tags || []).map(t => `<span class="tag">${t}</span>`).join("");
+  const who = opts.views ? `<span>👁 ${opts.views}</span>` : `<i class="ava"></i>${opts.author || "熊猫小判官"}`;
+  const meta = opts.meta != null ? opts.meta : opts.draft ? "草稿" : `${who}<span class="num">${icon("heart")} ${opts.n || 577}</span>`;
+  const action = opts.draftId != null ? `data-draft-id="${opts.draftId}"` : `data-open="${opts.mode || "text"}"`;
+  return `<button class="card" ${action}>${img}<div class="pad"><h3>${opts.title || TITLE}</h3>${excerpt}<div class="tags">${tags}</div><div class="meta">${meta}</div></div></button>`;
+}
+function recommendFeed() {
+  return `<div class="masonry">
+    <button class="card" data-open="text"><img class="cover sky" src="assets/sky.jpg" alt=""><div class="pad"><h3>恋与深空：深空皆予你</h3><p class="excerpt">全员单线，猎人小姐皆齐全</p><div class="tags"><span class="tag">恋与深空</span></div><div class="meta"><i class="ava"></i>夏秋迟<span class="num">3038 收藏</span></div></div></button>
+    ${card({ excerpt: BLURB, tags: ["哈利波特"], n: 823, author: "高处超然" })}
+    <button class="card" data-open="text"><img class="cover tide" src="assets/tide.jpg" alt=""><div class="pad"><h3>听潮阁：当伪音误入男厅后</h3><p class="excerpt">两位奶爸的故事</p><div class="meta"><i class="ava"></i>听潮阁<span class="num">5108 收藏</span></div></div></button>
+    <button class="card" data-open="photo"><img class="cover face" src="assets/face.jpg" alt=""></button>
+    ${card({ img: "assets/banner.jpg", title: "今天也有雷吗", excerpt: "韩娱向，继续读完这一篇", tags: ["韩娱"], author: "kpop", n: "1.2万" })}
+    ${card({ title: TITLE, excerpt: BLURB, tags: ["马尔福", "梦女向"], author: "武林外传", n: 1658 })}
+    ${card({ img: NIGHT, title: "湖边的约定", excerpt: "战后第七年，文书处的红茶还是热的。", tags: ["哈利波特"], n: 966 })}
+    ${card({ img: LAKE, excerpt: "他把伞往你手里送，又在你抓住伞柄时没有立刻松开。", tags: ["德拉科"], author: "熊猫小判官", n: 640 })}
+    ${card({ title: "中庭那一杯茶", excerpt: "只要别这么快答应别人。给我一个机会。", tags: ["短篇"], author: "高处超然", n: 421 })}
+  </div>`;
+}
+function bookList() {
+  return `<button class="bookrow" data-open="text"><img src="${NIGHT}" alt=""><div><h3>穿成龙族弃女我杀穿龙境</h3><p>连载 · 3892字</p><p class="sub">人气 3万 · 06-15 更新</p></div></button>
+    <button class="bookrow" data-open="text"><img src="${LAKE}" alt=""><div><h3>${TITLE}</h3><p>连载 · 2.1万字</p><p class="sub">人气 1.6万 · 10-22 更新</p></div></button>
+    <button class="bookrow" data-open="text"><div class="fake-cover" style="background:linear-gradient(#d9ecff,#fff);color:#333">柳智敏</div><div><h3>柳智敏 ccc</h3><p>连载 · 413字</p><p class="sub">人气 1951 · 06-09 更新</p></div></button>`;
+}
+function shortPosts() {
+  return `<div class="masonry fixed-cards">
+    ${card({ title: TITLE, excerpt: BLURB, tags: ["短篇", "哈利波特"], views: 5778, n: 1658 })}
+    ${card({ img: LAKE, title: "湖边的约定", tags: ["图文"], views: 3201, n: 640 })}
+    ${card({ title: "中庭那一杯茶", excerpt: "桌上会多一杯温度刚好的红茶。", tags: ["短篇"], views: 1888, n: 966, draft: true })}
+    ${card({ img: NIGHT, title: "雨里的飞路网", tags: ["图文", "德拉科"], views: 902, n: 421 })}
+  </div>`;
+}
+function communityCards() {
+  return `<div class="masonry">
+    ${card({ title: TITLE, excerpt: BLURB, tags: ["哈利波特", "马尔福"], views: 5778, n: 1658 })}
+    ${card({ title: "中庭那一杯茶", excerpt: "他不再只说进来。桌上会多一杯温度刚好的红茶。", tags: ["德拉科"], views: 1888, n: 966 })}
+    ${card({ title: "听潮阁：当伪音误入男厅后", excerpt: "两位奶爸的故事", views: 4206, n: 5108 })}
+    ${card({ title: "恋与深空：深空皆予你", excerpt: "全员单线，猎人小姐皆齐全", tags: ["恋与深空"], views: 3038, n: 3038 })}
+  </div>`;
+}
+function mineBody(kind) {
+  if (kind === "作品") return bookList();
+  if (kind === "社区") return communityCards();
+  if (kind === "书架") return shelfHtml();
+  return `<div class="empty">还没有${kind}</div>`;
+}
+function searchForm(placeholder) {
+  return `<form class="search" data-search><button class="icon" type="submit" aria-label="搜索">${icon("search")}</button><input name="q" placeholder="${placeholder}" autocomplete="off" enterkeyhint="search"></form>`;
+}
+
+function masonry(includeHot) {
+  const cards = [
+    card({ excerpt: BLURB, tags: ["哈利波特", "马尔福"] }),
+    card({ img: LAKE, tags: ["哈利波特", "马尔福"] }),
+    card({ img: NIGHT }),
+    card({ excerpt: BLURB, tags: ["哈利波特", "马尔福"] }),
+    card({ excerpt: BLURB, tags: ["哈利波特", "马尔福"] }),
+    card({ img: LAKE })
+  ].join("");
+  const hot = includeHot ? `<section class="hot"><h3><span style="color:var(--orange)">♨</span> 热门话题榜</h3><ol>${HOT.map((t,i)=>`<li><span class="n">${i+1}</span><span>${t}</span></li>`).join("")}</ol><p class="tip">进入社区看更多优质短篇，寻找同好</p><button class="go" data-go="follow">进入社区</button></section>` : "";
+  return `<div class="masonry">${hot}${cards}</div>`;
+}
+
+const views = {
+  home() {
+    const chips = HOME_CHIPS.map(name => {
+      const cls = name === homeTab ? "on" : "";
+      return `<button type="button" class="${cls}" data-htab="${name}">${name}</button>`;
+    }).join("");
+    const body = homeTab === "社区" ? masonry(true) : recommendFeed();
+    return `<div class="view feed"><div class="searchrow">${searchForm("洞霖、愈愈")}<button class="reward" type="button" data-reward>听读奖励<br>签到</button></div>
+      <div class="chips">${chips}</div>
+      <div class="scroller">${body}</div></div>`;
+  },
+  plaza() {
+    return `<div class="view"><div class="searchrow">${searchForm("洞霖、愈愈")}<button class="reward" type="button" data-reward>听读奖励<br>签到</button></div>
+      <div class="chips"><button class="on">角色广场</button><button>推荐</button><button>影视同人</button><button>明星同人</button><button>动漫同人</button><button>更多</button></div>
+      <div class="scroller">
+        <button class="bookrow" data-open="text"><div class="fake-cover" style="background:linear-gradient(160deg,#1c2a4a,#4d6ea8)">深空<br>皆予你</div><div><h3>恋与深空：深空皆予你</h3><p>全员单线，猎人小姐皆齐全</p><p class="sub">恋与深空 · 3038 收藏</p></div></button>
+        <button class="bookrow" data-open="text"><div class="fake-cover" style="background:linear-gradient(160deg,#3a2a88,#7a5cff)">听潮阁</div><div><h3>听潮阁：当伪音误入男厅后</h3><p>听潮阁</p><p class="sub">5108 收藏</p></div></button>
+        ${masonry(false)}
+      </div></div>`;
+  },
+  follow() {
+    return `<div class="view feed"><div class="topbar feed-top"><button class="icon" data-back>${icon("back")}</button><div class="seg"><button>关注</button><button class="on">推荐</button></div><div class="feed-side"><button class="icon" data-find>${icon("search")}</button><button class="avatar-sm" type="button" data-go="mine" aria-label="个人主页"></button></div></div>
+      <div class="subchips"><div class="subchips-scroll"><div class="sort-pill"><button type="button" class="on">推荐</button><button type="button">最新</button></div><button type="button">综合</button><button type="button">短篇</button><button type="button">图文</button><button type="button">话本圈</button></div><button type="button" data-more>更多</button></div>
+      <div class="scroller">${masonry(false)}</div><button class="fab" data-sheet>+</button></div>`;
+  },
+  tag() {
+    const tabs = ["书籍", "社区", "角色"].map(name => `<button type="button" class="${hpTab === name ? "on" : ""}" data-hptab="${name}">${name}</button>`).join("");
+    const names = hpTab === "书籍" ? ["推荐", "最新", "最热", "默认", "字数", "打卡", "收藏"] : hpTab === "角色" ? ["推荐", "最新", "最热"] : ["推荐", "最新", "最热", "综合", "短篇", "图文"];
+    const filters = `<div class="sort-pill">${names.slice(0, 3).map((name, i) => `<button type="button" class="${i === 0 ? "on" : ""}">${name}</button>`).join("")}</div>${names.slice(3).map(name => `<button type="button">${name}</button>`).join("")}`;
+    const rankBtn = hpTab === "社区" ? `<button class="rank" type="button" id="rankBtn">${rank} ▾</button><div class="popover" id="rankPop" ${rankOpen ? "" : "hidden"}><button type="button" data-rank="周榜">周榜</button><button type="button" data-rank="月榜">月榜</button><button type="button" data-rank="总榜">总榜</button></div>` : "";
+    const body = hpTab === "角色"
+      ? `<div class="masonry">${card({ img: NIGHT, title: "哈利·波特", excerpt: "格兰芬多 · 救世主", author: "角色" })}${card({ img: LAKE, title: "德拉科·马尔福", excerpt: "斯莱特林 · 马尔福家", author: "角色" })}</div>`
+      : masonry(false);
+    return `<div class="view hp"><div class="topbar"><button class="icon" data-back>${icon("back")}</button><form class="search" data-search style="margin:0;flex:1"><button class="icon" type="submit" aria-label="搜索">${icon("search")}</button><input name="q" value="hp" autocomplete="off" enterkeyhint="search"></form><button class="follow fill" id="tagFollow">关注</button></div>
+      <div class="taghead"><h2># HP</h2><p class="count">3.9万关注 4万作品</p></div>
+      <div class="hp-sheet"><div class="tabs3">${tabs}</div>
+      <div class="filters">${filters}${rankBtn}</div>
+      <div class="scroller">${body}</div></div></div>`;
+  },
+  shelf() {
+    const tabs = ["书架", "关注", "历史", "社区"].map(name => `<button type="button" class="${shelfTab === name ? "on" : ""}" data-stab="${name}">${name}</button>`).join("");
+    const books = SHELF_BOOKS.filter(book => shelfFilter === "全部" || (shelfFilter === "星标" && book.star) || (shelfFilter === "完结" && book.done));
+    const bookListHtml = books.map(book => `<button type="button" class="shelf-book" data-open="text"><div class="fake-cover" style="background:${book.color}">${book.mark}</div><div class="info"><h3>${book.title}${book.update ? `<i class="upd">更新</i>` : ""}</h3><p>${book.author} ${book.progress}</p><p>${book.latest}</p></div><span class="dot">⋮</span></button>`).join("") || `<div class="empty">这里还没有书</div>`;
+    const filters = ["全部", "星标", "完结"].map(name => `<button type="button" class="${shelfFilter === name ? "on" : ""}" data-sfilter="${name}">${name}</button>`).join("");
+    let body = bookListHtml;
+    if (shelfTab === "关注") body = `<div class="empty">还没有关注的更新</div>`;
+    if (shelfTab === "历史") body = `<button type="button" class="shelf-book" data-open="text"><div class="fake-cover" style="background:#243044">马尔</div><div class="info"><h3>${TITLE}</h3><p>读到 中庭那一杯茶</p><p>今天 15:18</p></div></button>`;
+    if (shelfTab === "社区") {
+      body = collectedPosts.length
+        ? `<div class="masonry">${collectedPosts.map(post => card(post)).join("")}</div>`
+        : `<div class="empty">还没有收藏的帖子</div>`;
+    }
+    const sheetTop = shelfTab === "书架"
+      ? `<div class="shelf-filters">${filters}<div class="side"><button type="button" data-shelf-tool="宫格">宫格</button><button type="button" data-shelf-tool="筛选">筛选</button></div></div>`
+      : "";
+    return `<div class="view shelf"><div class="topbar shelf-top"><div class="seg">${tabs}</div></div>
+      ${shelfTab === "书架" ? `<div class="shelf-sign"><div class="days">连续签到<b>${signDays} 天</b></div><button type="button" class="sign-btn${signedToday ? " on" : ""}" id="signBtn">${signedToday ? "已签到" : "今日签到"}</button></div>` : ""}
+      <div class="shelf-sheet">${sheetTop}<div class="scroller">${body}</div></div></div>`;
+  },
+  moreNav() {
+    const navTags = ["陈情令", "原创女频官推榜", "综影视", "影视同人", "动漫同人", "TNT时代少年团", "德云社", "叶罗丽", "明星同人", "校园言情"];
+    const followed = ["都市言情", "穿越言情", "游戏同人", "系统空间"];
+    const pills = list => list.map(name => `<button type="button" data-navtag="${name}">${name}</button>`).join("");
+    return `<div class="view more-nav"><div class="searchrow"><button class="icon" data-back aria-label="返回">${icon("back")}</button>${searchForm("种地吧：岁岁安康年")}<button class="sign-chip" type="button" id="navSign">签到<i></i></button></div>
+      <div class="scroller">
+        <div class="nav-h"><b>导航区</b><button type="button" class="link" id="editNav">进入编辑</button></div>
+        <div class="tag-grid">${pills(navTags)}</div>
+        <div class="nav-h"><b>我关注的标签</b><div class="links"><button type="button" id="searchTags">搜索标签</button><button type="button" id="allTags">查看全部</button></div></div>
+        <div class="tag-grid">${pills(followed)}</div>
+      </div></div>`;
+  },
+  write() {
+    const books = `<button class="work" data-open="text"><img src="${NIGHT}" alt="" style="width:64px;height:86px;object-fit:cover;border-radius:4px"><div><h3>穿成龙族弃女我杀穿龙境</h3><p>连载 3892字 人气3万</p><p>最后更新 06-15 <span class="silk">粉丝榜</span></p></div></button>
+      <button class="work"><div class="fake-cover" style="background:#ffe7c2;color:#e58a2a;place-items:center;font-size:12px">封面建设中</div><div><h3>下一次是</h3><p>草稿 0字 人气0</p><p>最后更新 06-10 <span class="silk">粉丝榜</span></p></div></button>
+      <button class="work" data-open="text"><div class="fake-cover" style="background:linear-gradient(#d9ecff,#fff);color:#333">柳智敏</div><div><h3>柳智敏 ccc</h3><p>连载 413字 人气1951</p><p>最后更新 06-09 <span class="silk">粉丝榜</span></p></div></button>`;
+    return `<div class="view write"><div class="scroller">
+      <div class="notice-bar"><div class="notices"><span>新版作者福利</span><span>明同双节征文 <i class="dot">●</i></span><span>游同现金补贴</span><span>动漫全勤</span></div><button type="button" class="notice-bin" id="openBin" aria-label="回收站"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button></div>
+      <div class="banner"><img src="assets/banner.jpg" alt="话本小说作者福利"></div>
+      <div class="tools"><div><i>▣</i>作品数据</div><div><i>▦</i>成长中心</div><div><i>✎</i>申请专区</div><button type="button" id="toCommunity"><i>✎</i>短篇社区</button></div>
+      <div class="write-switch"><button type="button" class="${writeMode === "books" ? "on" : ""}" data-wmode="books">书籍</button><button type="button" class="${writeMode === "shorts" ? "on" : ""}" data-wmode="shorts">短篇</button></div>
+      ${writeMode === "books" ? books : shortPosts()}
+      <div style="height:64px"></div>
+    </div><button class="float-btn" id="writeToggle">创建作品</button></div>`;
+  },
+  mine() {
+    const tabs = ["作品", "社区", "书架", "角色"].map(name => `<button type="button" class="${mineTab === name ? "on" : ""}" data-mine="${name}">${name}</button>`).join("");
+    return `<div class="view"><div class="mine-head"><button class="manage-btn" type="button" id="manageBtn" aria-label="管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6"/></svg></button><div class="manage-pop" id="managePop" hidden><button type="button" data-manage="dress">个性装扮</button><button type="button" data-manage="edit">编辑资料</button></div><div class="mine-user"><div class="big" style="background-image:url('${LAKE}')"></div><div><b>熊猫小判官</b><p>这个人很懒，什么都没写～</p></div></div>
+      <div class="mine-stats"><div><b>3.9万</b><span>粉丝</span></div><div><b>128</b><span>关注</span></div><div><b>3</b><span>作品</span></div><div><b>2.1万</b><span>创作字数</span></div></div></div>
+      <div class="tabs3" id="mineTabs">${tabs}</div>
+      <div class="scroller" id="mineBody">${mineBody(mineTab)}</div></div>`;
+  },
+  drafts() {
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const items = drafts.map(item => {
+      const body = String(item.body || "").trim();
+      const words = body.length;
+      const img = item.img || (item.pics && item.pics[0]) || "";
+      return card({
+        draftId: item.id,
+        title: esc(item.title || "无题"),
+        excerpt: body ? esc(body) : "",
+        tags: item.tags || [],
+        img,
+        meta: `<span class="draft-when">${esc(draftStamp(item))}</span><span class="draft-count">${words}字</span>`
+      });
+    }).join("");
+    const list = items ? `<div class="masonry fixed-cards">${items}</div>` : "";
+    return `<div class="view draft-page"><div class="topbar"><button class="icon" data-back aria-label="返回">${icon("back")}</button><h1>历史版本</h1><span class="spacer"></span></div><div class="scroller">${list}</div><p class="draft-cap">最多存100条草稿</p></div>`;
+  },
+  editor() {
+    const moment = editorMode === "moment";
+    const image = editorMode === "image";
+    const tags = moment
+      ? ["话本圈", "作者圈", "碎碎念", "生活日记"]
+      : ["哈利波特", "马尔福", "哈利波特", "马尔福", "哈利波特"];
+    const keys = moment ? ["time", "bgm", "link", "visible"] : ["time", "bgm", "link", "pay", "collection", "visible"];
+    const pics = image ? `<div class="pics">${[0,1,2].map(() => `<button type="button" class="add-pic">+</button>`).join("")}</div>` : "";
+    const cover = image ? "" : `<button class="plus" type="button" id="addCover">+</button>`;
+    const modeBtn = image ? `<button class="mode-link" type="button" id="openModes">${createStyle || "创作模式"}</button>` : "";
+    const rows = keys.map(key => {
+      const item = OPTS[key];
+      return `<button type="button" data-opt="${key}">${item.icon} ${item.label} <span>${postOpts[key]} ›</span></button>`;
+    }).join("");
+    return `<div class="view editor"><div class="topbar"><button class="icon" data-back>${icon("back")}</button><span class="spacer"></span>${modeBtn}</div>
+      <div class="scroller">
+        ${pics}
+        <input class="title" id="edTitle" placeholder="${image || moment ? "标题" : "文章标题"}" maxlength="40">
+        <textarea id="edBody" placeholder="正文"></textarea>
+        <div class="etag">${tags.map(t => `<span>${t}</span>`).join("")}<button class="add" type="button" id="addTag">添加tag</button></div>
+        ${cover}
+        <div class="rows">${rows}</div>
+      </div>
+      <div class="editor-bar"><button type="button" id="draft">存草稿</button><button type="button" data-open="text">预览</button><button class="pub" type="button" id="publish">发布</button></div>
+    </div>`;
+  },
+  createPick() {
+    const modes = [
+      ["聊天记录", "linear-gradient(180deg,#d7ecff,#f7fbff)"],
+      ["论坛体", "linear-gradient(180deg,#ffe7c2,#fff8ee)"],
+      ["朋友圈", "linear-gradient(180deg,#d9f5df,#f4fff6)"]
+    ];
+    return `<div class="view"><div class="topbar"><button class="icon" data-back>${icon("back")}</button><h1>创作模式</h1></div>
+      <div class="mode-row">${modes.map(([name, bg]) => `<button type="button" class="mode-card" data-cmode="${name}" style="background:${bg}">${name}</button>`).join("")}</div>
+      <p class="empty">选一种方式，再回到图文里继续写。</p></div>`;
+  },
+  reader() {
+    const dark = night;
+    const photo = readerMode === "photo" && !dark;
+    const titleBlock = photo
+      ? `<div class="hero"><img src="${LAKE}" alt=""><span class="badge">1/9</span></div><h2>${TITLE}</h2>`
+      : `<div class="hero"><img src="${dark ? NIGHT : LAKE}" alt=""><div class="fade"></div><h2>${TITLE}</h2></div>`;
+    return `<div class="view reader"><div class="topbar"><button class="icon" data-back>${icon("back")}</button><i class="avatar-sm"></i><h1>武林外传</h1><span class="spacer"></span><button class="follow ${followed ? "on" : ""}" id="followBtn">${followed ? "已关注" : "关注"}</button><button class="icon" id="shareBtn">${icon("share")}</button></div>
+      <div class="scroller" id="readerScroll">${titleBlock}
+        <div class="copy">${ARTICLE.map(p => `<p>${p}</p>`).join("")}</div>
+        <h3 class="section-title">关联书籍</h3>
+        <button class="rel" type="button"><img src="${NIGHT}" alt=""><div><b style="font-size:13px">穿成马尔福的亲妹妹怎么破</b><p class="brief">简介：${REL_BRIEF}</p><div class="score">9.7 分 · 147人点评 · 鲜花 2500</div></div></button>
+        <h3 class="section-title">共 2 条评论</h3>
+        <div id="commentList"><article class="comment"><div class="c-ava">熊</div><div><div class="c-name">熊猫小判官</div><div class="c-text">蹲蹲下一下更新呀</div><div class="c-date">06-06</div></div></article>
+        <article class="comment"><div class="c-ava">阳</div><div><div class="c-name">阳光_15981068959342341</div><div class="c-text">大大您好！特别爱看您的综穿一女多夫文，希望您开新书可以写这些世界。</div><div class="c-date">06-06</div></div></article></div>
+        <div style="height:12px"></div>
+      </div>
+      <form class="composer" id="composer"><input id="commentInput" placeholder="来写个评论吧~" maxlength="200"><button class="act like ${liked ? "on" : ""}" type="button" id="likeBtn">${icon("heart")}<span id="likeCount">${likeN}</span></button><button class="act star ${starred ? "on" : ""}" type="button" id="starBtn">${icon("star")}<span id="starCount">${starN}</span></button><button class="act" type="button" id="commentBtn">${icon("chat")}<span id="commentCount">${commentN}</span></button></form>
+    </div>`;
+  }
+};
+
+const TABS = [["home","首页","home"],["shelf","书架","shelf"],["plaza","角色广场","plaza"],["write","写作","pen"],["mine","我的","me"]];
+
+function renderTabs() {
+  const main = ["home","plaza","shelf","write","mine","follow"].includes(page);
+  const current = page === "follow" ? "home" : page;
+  const grad = page === "home" || page === "follow";
+  const hp = page === "tag";
+  tabbar.hidden = !main;
+  document.getElementById("homeInd").hidden = page === "reader" && night;
+  tabbar.innerHTML = TABS.map(([id, label, ic]) => `<button type="button" data-tab="${id}" class="${current === id ? "on" : ""}"${id === "plaza" ? " disabled aria-disabled=\"true\"" : ""}>${icon(ic)}<span>${label}</span></button>`).join("");
+  vinyl.hidden = page !== "reader";
+  screen.dataset.page = page;
+  screen.classList.toggle("dark", night && page === "reader");
+  screen.classList.toggle("grad", grad);
+  screen.classList.toggle("hpbg", hp);
+  const darkReader = night && page === "reader";
+  const onMine = page === "mine";
+  document.getElementById("status").style.background = darkReader ? "#000" : onMine ? "transparent" : (grad || hp) ? "transparent" : "#fff";
+  document.getElementById("status").style.color = darkReader || onMine ? "#fff" : "#111";
+}
+
+function show(name, opt) {
+  document.querySelector(".drop-panel")?.remove();
+  document.querySelector(".drop-mask")?.remove();
+  if (opt && opt.from) backTo = opt.from;
+  if (opt && opt.mode) readerMode = opt.mode;
+  page = name;
+  stage.innerHTML = views[name]();
+  renderTabs();
+  bind();
+}
+
+function openHp(from) {
+  hpTab = "书籍";
+  show("tag", { from: from === "tag" ? backTo : from });
+}
+function bind() {
+  stage.querySelectorAll("[data-search]").forEach(form => form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = String(new FormData(form).get("q") || "").trim();
+    if (/hp/i.test(q)) openHp(page);
+    else toast(q ? "没有找到「" + q + "」" : "搜索 HP 进入话题");
+  }));
+  stage.querySelectorAll("[data-find]").forEach(el => el.addEventListener("click", () => {
+    show("home");
+    const input = stage.querySelector("[data-search] input");
+    if (input) input.focus();
+  }));
+  stage.querySelectorAll("[data-htab]").forEach(el => el.addEventListener("click", () => {
+    const name = el.dataset.htab;
+    if (name === "角色广场") { show("plaza", { from: "home" }); return; }
+    homeTab = name;
+    show("home");
+  }));
+  stage.querySelectorAll("[data-hptab]").forEach(el => el.addEventListener("click", () => { hpTab = el.dataset.hptab; rankOpen = false; show("tag"); }));
+  stage.querySelectorAll("[data-reward]").forEach(el => el.addEventListener("click", () => toast("听读奖励已签到")));
+  stage.querySelectorAll("[data-go]").forEach(el => el.addEventListener("click", () => show(el.dataset.go, { from: page })));
+  stage.querySelectorAll("[data-back]").forEach(el => el.addEventListener("click", () => show(backTo === page ? "home" : backTo)));
+  stage.querySelectorAll("[data-open]").forEach(el => el.addEventListener("click", () => show("reader", { from: page, mode: el.dataset.open })));
+  stage.querySelectorAll("[data-sheet]").forEach(el => el.addEventListener("click", openSheet));
+  const rankBtn = document.getElementById("rankBtn");
+  if (rankBtn) rankBtn.addEventListener("click", () => { rankOpen = !rankOpen; show("tag"); });
+  stage.querySelectorAll("[data-rank]").forEach(el => el.addEventListener("click", () => { rank = el.dataset.rank; rankOpen = false; toast("已切换" + rank); show("tag"); }));
+  const tf = document.getElementById("tagFollow");
+  if (tf) tf.addEventListener("click", () => { tf.classList.toggle("on"); tf.textContent = tf.classList.contains("on") ? "已关注" : "关注"; });
+  const wt = document.getElementById("writeToggle");
+  if (wt) wt.addEventListener("click", () => {
+    if (writeMode === "shorts") openSheet();
+    else { editorCover = ""; editorPics = []; show("editor", { from: "write" }); }
+  });
+  const toCommunity = document.getElementById("toCommunity");
+  if (toCommunity) toCommunity.addEventListener("click", () => show("follow", { from: "write" }));
+  const openBin = document.getElementById("openBin");
+  if (openBin) openBin.addEventListener("click", () => toast("已打开回收站"));
+  stage.querySelectorAll("[data-wmode]").forEach(el => el.addEventListener("click", () => { writeMode = el.dataset.wmode; show("write"); }));
+  stage.querySelectorAll("[data-mine]").forEach(el => el.addEventListener("click", () => {
+    mineTab = el.dataset.mine;
+    stage.querySelectorAll("[data-mine]").forEach(b => b.classList.toggle("on", b === el));
+    const body = document.getElementById("mineBody");
+    body.innerHTML = mineBody(mineTab);
+    body.querySelectorAll("[data-open]").forEach(item => item.addEventListener("click", () => show("reader", { from: page, mode: item.dataset.open })));
+  }));
+  const manage = document.getElementById("manageBtn");
+  const managePop = document.getElementById("managePop");
+  if (manage && managePop) {
+    manage.addEventListener("click", (e) => { e.stopPropagation(); managePop.hidden = !managePop.hidden; });
+    managePop.querySelector("[data-manage='dress']").addEventListener("click", () => { managePop.hidden = true; toast("已打开个性装扮"); });
+    managePop.querySelector("[data-manage='edit']").addEventListener("click", () => { managePop.hidden = true; toast("已打开编辑资料"); });
+    if (!stage._manageCloser) {
+      stage._manageCloser = (e) => {
+        const pop = document.getElementById("managePop");
+        if (pop && !pop.hidden && !e.target.closest("#manageBtn") && !e.target.closest("#managePop")) pop.hidden = true;
+      };
+      stage.addEventListener("click", stage._manageCloser);
+    }
+  }
+  const fb = document.getElementById("followBtn");
+  if (fb) fb.addEventListener("click", () => { followed = !followed; fb.classList.toggle("on", followed); fb.textContent = followed ? "已关注" : "关注"; });
+  const share = document.getElementById("shareBtn");
+  if (share) share.addEventListener("click", () => toast("已复制分享链接"));
+  const like = document.getElementById("likeBtn");
+  if (like) like.addEventListener("click", () => { liked = !liked; likeN += liked ? 1 : -1; like.classList.toggle("on", liked); document.getElementById("likeCount").textContent = likeN; });
+  const star = document.getElementById("starBtn");
+  if (star) star.addEventListener("click", () => {
+    starred = !starred;
+    starN += starred ? 1 : -1;
+    star.classList.toggle("on", starred);
+    document.getElementById("starCount").textContent = starN;
+    if (starred) {
+      if (!collectedPosts.some(post => post.title === TITLE)) {
+        collectedPosts.unshift({ title: TITLE, excerpt: BLURB, tags: ["哈利波特", "马尔福"], author: "武林外传", n: starN, img: LAKE });
+      }
+      toast("已收藏，可在书架的社区里查看");
+    } else {
+      collectedPosts = collectedPosts.filter(post => post.title !== TITLE);
+      toast("已取消收藏");
+    }
+  });
+  const cb = document.getElementById("commentBtn");
+  if (cb) cb.addEventListener("click", () => document.getElementById("commentInput").focus());
+  const form = document.getElementById("composer");
+  if (form) form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const input = document.getElementById("commentInput");
+    const text = input.value.trim();
+    if (!text) return;
+    const node = document.createElement("article");
+    node.className = "comment";
+    node.innerHTML = `<div class="c-ava">我</div><div><div class="c-name">我</div><div class="c-text"></div><div class="c-date">刚刚</div></div>`;
+    node.querySelector(".c-text").textContent = text;
+    document.getElementById("commentList").prepend(node);
+    input.value = "";
+    commentN += 1;
+    document.getElementById("commentCount").textContent = commentN;
+    toast("评论已发送");
+  });
+  stage.querySelectorAll("[data-unlock]").forEach(el => el.addEventListener("click", () => {
+    document.getElementById("more").hidden = false;
+    document.getElementById("lock").hidden = true;
+    toast(el.dataset.unlock === "gift" ? "已赠送礼物，正文已解锁" : "已使用会员权益解锁");
+  }));
+  const draft = document.getElementById("draft");
+  if (draft) draft.addEventListener("click", () => {
+    if (drafts.length >= 100) { toast("最多存100条草稿"); return; }
+    const titleEl = document.getElementById("edTitle");
+    const bodyEl = document.getElementById("edBody");
+    const body = bodyEl ? bodyEl.value : "";
+    const now = new Date();
+    const pics = [...stage.querySelectorAll(".add-pic")].map(el => el.dataset.src || "").filter(Boolean);
+    const coverBtn = document.getElementById("addCover");
+    const img = (coverBtn && coverBtn.dataset.src) || pics[0] || "";
+    drafts.unshift({
+      id: Date.now(),
+      title: titleEl ? titleEl.value.trim() : "",
+      body,
+      words: body.length,
+      mode: editorMode,
+      img,
+      pics,
+      at: now.getTime(),
+      time: pad(now.getMonth() + 1) + "-" + pad(now.getDate()) + " " + pad(now.getHours()) + ":" + pad(now.getMinutes())
+    });
+    toast("已存入草稿箱");
+  });
+  stage.querySelectorAll("[data-draft-id]").forEach(el => el.addEventListener("click", () => {
+    const item = drafts.find(d => String(d.id) === el.dataset.draftId);
+    if (!item) return;
+    editorMode = item.mode || "article";
+    editorCover = item.img || "";
+    editorPics = item.pics ? item.pics.slice() : (item.img ? [item.img] : []);
+    show("editor", { from: "drafts" });
+    const titleEl = document.getElementById("edTitle");
+    const bodyEl = document.getElementById("edBody");
+    if (titleEl) titleEl.value = item.title;
+    if (bodyEl) bodyEl.value = item.body;
+    paintEditorImages();
+  }));
+  const pub = document.getElementById("publish");
+  if (pub) pub.addEventListener("click", () => { toast("发布成功"); show("write"); });
+  const addTag = document.getElementById("addTag");
+  if (addTag) addTag.addEventListener("click", () => {
+    const name = prompt("输入标签");
+    if (!name) return;
+    const s = document.createElement("span");
+    s.textContent = name.trim();
+    addTag.before(s);
+  });
+  const addCover = document.getElementById("addCover");
+  if (addCover) addCover.addEventListener("click", () => pickEditorImage(url => { editorCover = url; setPic(addCover, url); }));
+  stage.querySelectorAll(".add-pic").forEach((el, i) => {
+    if (editorPics[i]) setPic(el, editorPics[i]);
+    el.addEventListener("click", () => pickEditorImage(url => { editorPics[i] = url; setPic(el, url); }));
+  });
+  stage.querySelectorAll("[data-opt]").forEach(el => el.addEventListener("click", () => openOptionDrawer(el.dataset.opt)));
+  const openModes = document.getElementById("openModes");
+  if (openModes) openModes.addEventListener("click", openCreateModeDrawer);
+  stage.querySelectorAll("[data-cmode]").forEach(el => el.addEventListener("click", () => {
+    createStyle = el.dataset.cmode;
+    toast("已选择" + createStyle);
+    show("editor");
+  }));
+  stage.querySelectorAll(".subchips > button, .subchips-scroll > button, .sort-pill button, .filters button:not(.rank)").forEach(btn => btn.addEventListener("click", () => {
+    if (btn.hasAttribute("data-more")) { openMoreCard(); return; }
+    btn.parentElement.querySelectorAll(":scope > button").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+  }));
+  stage.querySelectorAll("[data-stab]").forEach(el => el.addEventListener("click", () => { shelfTab = el.dataset.stab; show("shelf"); }));
+  stage.querySelectorAll("[data-sfilter]").forEach(el => el.addEventListener("click", () => { shelfFilter = el.dataset.sfilter; show("shelf"); }));
+  stage.querySelectorAll("[data-shelf-tool]").forEach(el => el.addEventListener("click", () => toast(el.dataset.shelfTool)));
+  const signBtn = document.getElementById("signBtn");
+  const doSign = () => {
+    if (signedToday) { toast("今天已经签到"); return; }
+    signedToday = true;
+    signDays += 1;
+    toast("签到成功");
+    if (page === "shelf") show("shelf");
+  };
+  if (signBtn) signBtn.addEventListener("click", doSign);
+  const navSign = document.getElementById("navSign");
+  if (navSign) navSign.addEventListener("click", () => toast("已签到"));
+  const editNav = document.getElementById("editNav");
+  if (editNav) editNav.addEventListener("click", () => toast("已打开编辑"));
+  const searchTags = document.getElementById("searchTags");
+  if (searchTags) searchTags.addEventListener("click", () => { const input = stage.querySelector("[data-search] input"); if (input) input.focus(); });
+  const allTags = document.getElementById("allTags");
+  if (allTags) allTags.addEventListener("click", () => toast("已查看全部标签"));
+  stage.querySelectorAll("[data-navtag]").forEach(el => el.addEventListener("click", () => show("tag", { from: "moreNav" })));
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function setOptLabel(key, text) {
+  postOpts[key] = text;
+  const label = stage.querySelector(`[data-opt="${key}"] span`);
+  if (label) label.textContent = text + " ›";
+}
+function openMoreCard() {
+  const old = document.querySelector(".drop-panel");
+  if (old) { old.remove(); document.querySelector(".drop-mask")?.remove(); return; }
+  const navTags = ["陈情令", "原创女频官推榜", "综影视", "影视同人", "动漫同人", "TNT时代少年团", "德云社", "叶罗丽", "明星同人", "校园言情"];
+  const followed = ["都市言情", "穿越言情", "游戏同人", "系统空间"];
+  const pills = list => list.map(name => `<button type="button" data-navtag="${name}">${name}</button>`).join("");
+  const anchor = stage.querySelector(".subchips");
+  const top = anchor ? anchor.getBoundingClientRect().bottom - screen.getBoundingClientRect().top : 100;
+  const mask = document.createElement("div");
+  mask.className = "drop-mask";
+  mask.style.top = top + "px";
+  const panel = document.createElement("div");
+  panel.className = "drop-panel";
+  panel.style.top = top + "px";
+  panel.innerHTML = `<div class="nav-h"><b>导航区</b><button type="button" class="link" id="editNav">进入编辑</button></div>
+    <div class="tag-grid">${pills(navTags)}</div>
+    <div class="nav-h"><b>我关注的标签</b><div class="links"><button type="button" id="searchTags">搜索标签</button><button type="button" id="allTags">查看全部</button></div></div>
+    <div class="tag-grid">${pills(followed)}</div>`;
+  const close = () => { mask.remove(); panel.remove(); };
+  mask.addEventListener("click", close);
+  panel.querySelector("#editNav").addEventListener("click", () => toast("已打开编辑"));
+  panel.querySelector("#searchTags").addEventListener("click", () => toast("已打开搜索标签"));
+  panel.querySelector("#allTags").addEventListener("click", () => toast("已查看全部标签"));
+  panel.querySelectorAll("[data-navtag]").forEach(el => el.addEventListener("click", () => { close(); show("tag", { from: page }); }));
+  screen.append(mask, panel);
+}
+function mountDrawer() {
+  const mask = document.createElement("div");
+  mask.className = "mask";
+  const sheet = document.createElement("div");
+  sheet.className = "drawer";
+  const close = () => { mask.remove(); sheet.remove(); };
+  mask.addEventListener("click", close);
+  screen.append(mask, sheet);
+  return { sheet, close };
+}
+function openCreateModeDrawer() {
+  const modes = [
+    ["聊天记录", "linear-gradient(180deg,#d7ecff,#f7fbff)"],
+    ["论坛体", "linear-gradient(180deg,#ffe7c2,#fff8ee)"],
+    ["推特体", "linear-gradient(180deg,#d5dcff,#f5f7ff)"],
+    ["朋友圈", "linear-gradient(180deg,#d9f5df,#f4fff6)"]
+  ];
+  const { sheet, close } = mountDrawer();
+  sheet.innerHTML = `<i class="handle"></i><h3>创作模式</h3><div class="mode-row">${modes.map(([name, bg]) => `<button type="button" class="mode-card${createStyle === name ? " on" : ""}" data-dmode="${name}" style="background:${bg}">${name}</button>`).join("")}</div>`;
+  sheet.querySelectorAll("[data-dmode]").forEach(btn => btn.addEventListener("click", () => {
+    createStyle = btn.dataset.dmode;
+    const link = document.getElementById("openModes");
+    if (link) link.textContent = createStyle;
+    close();
+    toast("已选择" + createStyle);
+  }));
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function draftStamp(item) {
+  const at = item.at || Date.now();
+  const d = new Date(at);
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((start - day) / 86400000);
+  const hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+  if (diff === 0) return "今天 " + hm;
+  if (diff === 1) return "昨天 " + hm;
+  return pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + " " + hm;
+}
+function formatCN(d) {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toLocalValue(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function openTimeDrawer() {
+  const { sheet, close } = mountDrawer();
+  const saved = postOpts.time.match(/(\d+)年(\d+)月(\d+)日\s+(\d+):(\d+)/);
+  if (saved) scheduleAt = new Date(+saved[1], +saved[2] - 1, +saved[3], +saved[4], +saved[5]);
+  scheduleOn = postOpts.time !== "关闭";
+  const paint = () => {
+    sheet.innerHTML = `<div class="sched-row"><b>定时发布</b><button type="button" class="switch${scheduleOn ? " on" : ""}" id="timeSwitch" aria-label="定时发布"></button></div>
+      <div class="sched-row" id="timeDateRow" ${scheduleOn ? "" : "hidden"}><span>日期</span><label class="date-hit"><span id="timeDateText">${formatCN(scheduleAt)} ›</span><input id="timeInput" type="datetime-local" value="${toLocalValue(scheduleAt)}"></label></div>
+      <button type="button" class="drawer-primary" id="timeConfirm">确认发布</button>`;
+    sheet.querySelector("#timeSwitch").addEventListener("click", () => { scheduleOn = !scheduleOn; paint(); });
+    const input = sheet.querySelector("#timeInput");
+    if (input) input.addEventListener("change", () => {
+      if (!input.value) return;
+      scheduleAt = new Date(input.value);
+      sheet.querySelector("#timeDateText").textContent = formatCN(scheduleAt) + " ›";
+    });
+    sheet.querySelector("#timeConfirm").addEventListener("click", () => {
+      setOptLabel("time", scheduleOn ? formatCN(scheduleAt) : "关闭");
+      close();
+      toast(scheduleOn ? "已设置定时发布" : "已关闭定时发布");
+    });
+  };
+  paint();
+}
+function openLinkDrawer() {
+  const { sheet, close } = mountDrawer();
+  let kind = "book";
+  const draft = linked.map(item => ({ ...item }));
+  const paint = () => {
+    const list = kind === "book" ? LINK_BOOKS : LINK_AGENTS;
+    const rows = list.map(name => {
+      const on = draft.some(item => item.kind === kind && item.name === name);
+      return `<button type="button" class="pick-row${on ? " on" : ""}" data-name="${esc(name)}"><span>${esc(name)}</span>${on ? "<i>✓</i>" : ""}</button>`;
+    }).join("");
+    sheet.innerHTML = `<h3>关联内容</h3><div class="kind-switch"><button type="button" data-kind="book" class="${kind === "book" ? "on" : ""}">书籍</button><button type="button" data-kind="agent" class="${kind === "agent" ? "on" : ""}">智能体</button></div><p class="link-count">已选 ${draft.length}/5</p><div class="pick-list">${rows}</div><button type="button" class="drawer-primary" id="linkOk">确定</button>`;
+    sheet.querySelectorAll("[data-kind]").forEach(btn => btn.addEventListener("click", () => { kind = btn.dataset.kind; paint(); }));
+    sheet.querySelectorAll("[data-name]").forEach(btn => btn.addEventListener("click", () => {
+      const name = btn.dataset.name;
+      const index = draft.findIndex(item => item.kind === kind && item.name === name);
+      if (index >= 0) draft.splice(index, 1);
+      else if (draft.length >= 5) { toast("最多关联 5 个"); return; }
+      else draft.push({ kind, name });
+      paint();
+    }));
+    sheet.querySelector("#linkOk").addEventListener("click", () => {
+      linked = draft.map(item => ({ ...item }));
+      const text = linked.length === 0 ? "未关联" : linked.length === 1 ? linked[0].name : `已关联 ${linked.length} 项`;
+      setOptLabel("link", text);
+      close();
+      toast(linked.length ? "已关联内容" : "已取消关联");
+    });
+  };
+  paint();
+}
+function openPayDrawer() {
+  const { sheet, close } = mountDrawer();
+  const coin = postOpts.pay.match(/^金币\s+(\d+)/);
+  const flower = postOpts.pay.match(/^鲜花\s+(\d+)/);
+  if (coin) { payMode = "coin"; payQty = +coin[1]; }
+  else if (flower) { payMode = "flower"; payQty = +flower[1]; }
+  const paint = () => {
+    const max = payMode === "coin" ? 100 : 9999;
+    payQty = Math.min(max, Math.max(1, payQty));
+    const hint = payMode === "coin"
+      ? "提示：金币上限 100，不得超过 100。作者与平台分成 8:2，设置后不可取消。"
+      : "提示：鲜花解锁。作者与平台分成 8:2，设置后不可取消。";
+    sheet.innerHTML = `<h3 style="text-align:left">开启条件</h3>
+      <div class="pay-modes"><button type="button" data-pay="coin" class="${payMode === "coin" ? "on" : ""}">金币解锁</button><button type="button" data-pay="flower" class="${payMode === "flower" ? "on" : ""}">鲜花解锁</button></div>
+      <div class="qty-row"><span>数量</span><div class="stepper"><button type="button" data-step="-1" aria-label="减少">−</button><b>${payQty}</b><button type="button" data-step="1" aria-label="增加">+</button></div></div>
+      <p class="hint">${hint}</p>
+      <button type="button" class="text-btn" id="payOff">关闭付费</button>
+      <div class="drawer-actions"><button type="button" id="payCancel">取消</button><button type="button" class="ok" id="payOk">确定</button></div>`;
+    sheet.querySelectorAll("[data-pay]").forEach(btn => btn.addEventListener("click", () => {
+      payMode = btn.dataset.pay;
+      if (payMode === "coin" && payQty > 100) payQty = 100;
+      paint();
+    }));
+    sheet.querySelectorAll("[data-step]").forEach(btn => btn.addEventListener("click", () => {
+      const next = payQty + Number(btn.dataset.step);
+      const limit = payMode === "coin" ? 100 : 9999;
+      if (next > limit) { toast(payMode === "coin" ? "金币不得超过100" : "数量已达上限"); return; }
+      if (next < 1) return;
+      payQty = next;
+      paint();
+    }));
+    sheet.querySelector("#payCancel").addEventListener("click", close);
+    sheet.querySelector("#payOff").addEventListener("click", () => { setOptLabel("pay", "关闭"); close(); toast("已关闭付费解锁"); });
+    sheet.querySelector("#payOk").addEventListener("click", () => {
+      setOptLabel("pay", `${payMode === "coin" ? "金币" : "鲜花"} ${payQty}`);
+      close();
+      toast("已设置付费解锁");
+    });
+  };
+  paint();
+}
+function openCollectionDrawer() {
+  const { sheet, close } = mountDrawer();
+  let view = "pick";
+  let coverUrl = "";
+  const sorted = () => collections.slice().sort((a, b) => b.at - a.at);
+  const paint = () => {
+    if (view === "create") {
+      sheet.innerHTML = `<h3>创建合集</h3><div class="col-form">
+        <input id="colName" maxlength="20" placeholder="合集名称（必填）">
+        <textarea id="colIntro" maxlength="30" placeholder="合集介绍（选填，30字）"></textarea>
+        <button type="button" class="cover-pick" id="colCover" ${coverUrl ? `style="background-image:url('${coverUrl}')"` : ""}>${coverUrl ? "" : "添加图片"}</button>
+        <input id="colFile" type="file" accept="image/*" hidden>
+      </div><div class="drawer-actions"><button type="button" id="colCancel">取消</button><button type="button" class="ok" id="colOk">确认创建</button></div>`;
+      sheet.querySelector("#colCover").addEventListener("click", () => sheet.querySelector("#colFile").click());
+      sheet.querySelector("#colFile").addEventListener("change", () => {
+        const file = sheet.querySelector("#colFile").files[0];
+        if (!file) return;
+        const name = sheet.querySelector("#colName").value;
+        const intro = sheet.querySelector("#colIntro").value;
+        coverUrl = URL.createObjectURL(file);
+        paint();
+        const nameEl = sheet.querySelector("#colName");
+        if (nameEl) { nameEl.value = name; sheet.querySelector("#colIntro").value = intro; }
+      });
+      sheet.querySelector("#colCancel").addEventListener("click", () => { coverUrl = ""; view = "manage"; paint(); });
+      sheet.querySelector("#colOk").addEventListener("click", () => {
+        const name = sheet.querySelector("#colName").value.trim();
+        const intro = sheet.querySelector("#colIntro").value.trim();
+        if (!name) { toast("请填写合集名称"); return; }
+        if (collections.length >= 20) { toast("合集数量已达到上限"); return; }
+        const item = { id: ++colSeq, name, intro, cover: coverUrl, at: Date.now() };
+        collections.unshift(item);
+        pickedCol = item.id;
+        setOptLabel("collection", item.name);
+        coverUrl = "";
+        view = "pick";
+        toast("创建成功");
+        paint();
+      });
+      return;
+    }
+    const managing = view === "manage";
+    const none = managing ? "" : `<button type="button" class="col-row${pickedCol === 0 ? " on" : ""}" data-pick="0"><span>不添加</span>${pickedCol === 0 ? `<i class="mark">✓</i>` : ""}</button>`;
+    const rows = none + sorted().map(item => managing
+      ? `<div class="col-row"><span>${esc(item.name)}</span><button type="button" class="del" data-del="${item.id}">删除</button></div>`
+      : `<button type="button" class="col-row${pickedCol === item.id ? " on" : ""}" data-pick="${item.id}"><span>${esc(item.name)}</span>${pickedCol === item.id ? `<i class="mark">✓</i>` : ""}</button>`
+    ).join("") || `<p class="hint">还没有合集</p>`;
+    sheet.innerHTML = `<div class="drawer-head"><h3>${managing ? "管理合集" : "添加合集"}</h3>${managing ? `<button type="button" class="text-btn" id="colDone">完成</button>` : `<button type="button" class="text-btn" id="colManage">管理合集</button>`}</div>
+      <div class="pick-list">${rows}</div>
+      ${managing ? `<button type="button" class="drawer-primary" id="colCreate">创建合集</button>` : `<button type="button" class="drawer-primary" id="colUse">确定</button>`}`;
+    const manage = sheet.querySelector("#colManage");
+    if (manage) manage.addEventListener("click", () => { view = "manage"; paint(); });
+    const done = sheet.querySelector("#colDone");
+    if (done) done.addEventListener("click", () => { view = "pick"; paint(); });
+    sheet.querySelectorAll("[data-pick]").forEach(btn => btn.addEventListener("click", () => { pickedCol = Number(btn.dataset.pick); paint(); }));
+    sheet.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.del);
+      collections = collections.filter(item => item.id !== id);
+      if (pickedCol === id) { pickedCol = 0; setOptLabel("collection", "未添加"); }
+      toast("已删除合集");
+      paint();
+    }));
+    const create = sheet.querySelector("#colCreate");
+    if (create) create.addEventListener("click", () => {
+      if (collections.length >= 20) { toast("合集数量已达到上限"); return; }
+      coverUrl = "";
+      view = "create";
+      paint();
+    });
+    const use = sheet.querySelector("#colUse");
+    if (use) use.addEventListener("click", () => {
+      const item = collections.find(col => col.id === pickedCol);
+      setOptLabel("collection", item ? item.name : "未添加");
+      close();
+      toast(item ? "已加入合集" : "未添加合集");
+    });
+  };
+  paint();
+}
+function openOptionDrawer(key) {
+  if (key === "time") return openTimeDrawer();
+  if (key === "link") return openLinkDrawer();
+  if (key === "pay") return openPayDrawer();
+  if (key === "collection") return openCollectionDrawer();
+  const item = OPTS[key];
+  if (!item) return;
+  const { sheet, close } = mountDrawer();
+  sheet.innerHTML = `<i class="handle"></i><h3>${item.label}</h3>` + item.choices.map(choice => `<button type="button" class="opt-card${postOpts[key] === choice ? " on" : ""}" data-choice="${choice}">${choice}</button>`).join("");
+  sheet.querySelectorAll("[data-choice]").forEach(btn => btn.addEventListener("click", () => {
+    const choice = btn.dataset.choice;
+    if (key === "bgm" && choice === "从本地上传") {
+      close();
+      document.getElementById("file").click();
+      return;
+    }
+    setOptLabel(key, choice);
+    close();
+    toast("已设置" + item.label);
+  }));
+}
+
+function openSheet(mode) {
+  const createOnly = mode === "create";
+  const mask = document.createElement("div");
+  mask.className = "mask";
+  const sheet = document.createElement("div");
+  sheet.className = "sheet";
+  sheet.innerHTML = `<button type="button" data-mode="article">写短篇</button><button type="button" data-mode="image">发图文</button>${createOnly ? "" : `<button type="button" data-mode="moment">发动态</button><button type="button" data-draft>草稿箱</button>`}<button type="button" class="cancel">取消</button>`;
+  const close = () => { mask.remove(); sheet.remove(); };
+  mask.addEventListener("click", close);
+  sheet.querySelector(".cancel").addEventListener("click", close);
+  const draft = sheet.querySelector("[data-draft]");
+  if (draft) draft.addEventListener("click", () => { close(); show("drafts", { from: page }); });
+  sheet.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => { close(); editorCover = ""; editorPics = []; editorMode = b.dataset.mode; show("editor", { from: page }); }));
+  screen.append(mask, sheet);
+}
+
+tabbar.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-tab]");
+  if (!btn || btn.dataset.tab === "plaza") return;
+  backTo = btn.dataset.tab;
+  if (btn.dataset.tab === "home") homeTab = "推荐";
+  show(btn.dataset.tab);
+});
+
+document.querySelectorAll("[data-theme]").forEach(btn => btn.addEventListener("click", () => {
+  night = btn.dataset.theme === "dark";
+  document.querySelectorAll("[data-theme]").forEach(b => b.classList.toggle("on", b === btn));
+  if (page === "reader") show("reader");
+  else toast(night ? "阅读页已切换夜间模式" : "阅读页已切换日间模式");
+}));
+
+function loadFile(file) {
+  if (!file) return;
+  const ok = (file.type || "").startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg|flac|webm)$/i.test(file.name);
+  if (!ok) { toast("请上传音频文件"); return; }
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl = URL.createObjectURL(file);
+  audio.src = objectUrl;
+  trackTitle = file.name.replace(/\.[^.]+$/, "");
+  postOpts.bgm = trackTitle;
+  document.getElementById("fileState").textContent = "已加载：" + trackTitle;
+  const bgmLabel = stage.querySelector('[data-opt="bgm"] span');
+  if (bgmLabel) bgmLabel.textContent = trackTitle + " ›";
+  vinyl.setAttribute("aria-label", "播放或暂停：" + trackTitle);
+  toast("音乐已上传");
+}
+document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("file").click());
+document.getElementById("file").addEventListener("change", () => loadFile(document.getElementById("file").files[0]));
+function syncPlay() {
+  const on = !!audio.src && !audio.paused;
+  vinyl.classList.toggle("on", on);
+  document.getElementById("playBtn").classList.toggle("on", on);
+  const label = document.getElementById("fileState");
+  label.classList.toggle("playing", on);
+  if (audio.src) label.textContent = (on ? "正在播放：" : "已暂停：") + trackTitle;
+}
+function playMusic() {
+  if (!audio.src) { toast("还没有可播放的音乐"); return; }
+  audio.play().then(syncPlay).catch(() => toast("这段音频无法播放"));
+}
+function pauseMusic() { if (audio.src && !audio.paused) { audio.pause(); syncPlay(); } }
+document.getElementById("playBtn").addEventListener("click", playMusic);
+document.getElementById("pauseBtn").addEventListener("click", pauseMusic);
+vinyl.addEventListener("click", () => audio.paused || !audio.src ? playMusic() : pauseMusic());
+audio.addEventListener("play", syncPlay);
+audio.addEventListener("pause", syncPlay);
+audio.addEventListener("ended", syncPlay);
+
+vinyl.style.setProperty("--cover", "url(\"" + TRACK_COVER + "\")");
+vinyl.setAttribute("aria-label", "播放或暂停：" + trackTitle);
+
+const params = new URLSearchParams(location.search);
+if (params.get("night") === "1") night = true;
+show(views[params.get("view")] ? params.get("view") : "home");
+</script>
+</body>
+</html>
