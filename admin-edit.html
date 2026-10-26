@@ -41,7 +41,7 @@
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
 <script>
-const root = location.protocol === "file:" ? "http://127.0.0.1:8765" : "";
+const root = (location.hostname === "127.0.0.1" || location.hostname === "localhost") ? "" : "http://127.0.0.1:8765";
 const id = new URLSearchParams(location.search).get("id") || "";
 const summary = document.getElementById("summary");
 const form = document.getElementById("editor");
@@ -92,7 +92,10 @@ form.addEventListener("submit", async e => {
       body: JSON.stringify({ id, status: "submitted", author, title, tag, content })
     });
     const raw = await res.text();
-    if (!res.ok) { summary.textContent = raw || "没有保存成功。"; return; }
+    if (!res.ok) {
+      summary.textContent = /<\s*html|405 Not Allowed/i.test(raw) ? "这次修改还没保存。请打开 http://127.0.0.1:8765/admin.html" : (raw || "没有保存成功。");
+      return;
+    }
     summary.textContent = "已保存。";
   } catch (err) {
     summary.textContent = "没有连上本机转发，这次修改还没保存。";

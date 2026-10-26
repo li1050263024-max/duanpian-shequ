@@ -36,7 +36,7 @@
   <div id="list"></div>
 </div>
 <script>
-const root = location.protocol === "file:" ? "http://127.0.0.1:8765" : "";
+const root = (location.hostname === "127.0.0.1" || location.hostname === "localhost") ? "" : "http://127.0.0.1:8765";
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
