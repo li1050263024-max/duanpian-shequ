@@ -358,6 +358,7 @@ def main():
                 "keywords": [] if reason else extract_keywords(title + "\n" + content),
                 "hook": "" if reason else safe_hook(title, content),
                 "excerpt": "" if reason else safe_excerpt(content),
+                "content": "" if reason else content,
                 "ending": ending_of(grouped.get("mood", [])),
                 "blocked": bool(reason),
                 "blockReason": reason,

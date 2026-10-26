@@ -33,7 +33,7 @@
   header h1 { margin: 0; font-size: 20px; font-weight: 750; }
   header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
   header a { color: var(--blue); font-size: 13px; text-decoration: none; }
-  .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px 1fr 420px; background: var(--card); border-radius: 18px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.06); }
+  .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px minmax(300px, 0.7fr) minmax(680px, 1.5fr); background: var(--card); border-radius: 18px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.06); }
   .col { min-height: 0; display: flex; flex-direction: column; }
   .col + .col { border-left: 1px solid var(--line); }
   .pad { padding: 14px; }
@@ -64,13 +64,32 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip.off { color: #aaa; background: #fafafa; }
   .excerpt { margin-top: 16px; padding: 12px; background: var(--soft); border-radius: 12px; color: #555; font-size: 13px; line-height: 1.7; }
+  .origin { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.85; color: #222; }
+  #right { overflow: auto; }
+  .model { border-top: 1px solid var(--line); padding: 12px 14px 18px; background: #fff; }
+  .model h3 { margin: 0; font-size: 14px; }
+  .model .desc { margin-top: 4px; }
+  .model label { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 12px; color: #666; }
+  .model input, .model select { height: 34px; border: 1px solid #e6e6e6; border-radius: 10px; background: var(--soft); padding: 0 10px; font-size: 13px; }
+  .model-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .model-grid button { height: auto; min-height: 28px; padding: 6px 10px; border: 1px solid #e6e6e6; background: #fff; border-radius: 10px; line-height: 1.3; text-align: left; }
+  .model-grid button.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .model-id { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+  .model .actions { padding: 10px 0 0; }
+  #modelOut, #revisePrompt { display: block; width: calc(100% - 20px); margin: 8px 10px 0; min-height: 120px; resize: vertical; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fbfbfc; font-size: 14px; line-height: 1.75; }
+  #modelOut { height: 360px; min-height: 240px; }
+  #revisePrompt { height: 96px; }
+  .file-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .file-row label { flex: 1; min-width: 140px; }
   .studio-top { padding: 14px 14px 0; }
   .seg { display: flex; flex-wrap: wrap; gap: 6px; }
   .seg button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
   .desc { margin: 8px 0 0; color: #666; font-size: 12px; line-height: 1.55; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .controls label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
-  .prompt { margin: 10px 14px; flex: 1; min-height: 180px; resize: none; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fbfbfc; font-size: 12.5px; line-height: 1.65; }
+  .prompt-label { margin: 12px 10px 0; color: #666; font-size: 12px; }
+  .prompt { display: block; width: calc(100% - 20px); margin: 6px 10px 0; min-height: 140px; height: 180px; resize: vertical; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fbfbfc; font-size: 12.5px; line-height: 1.65; }
+  .prompt.user { height: 420px; min-height: 320px; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
   .actions .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
   .draft { margin: 0 14px 16px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; }
@@ -94,7 +113,10 @@
       <h1>短篇测试生成</h1>
       <p id="summary">正在读取素材标签…</p>
     </div>
-    <a href="index.html">返回社区原型</a>
+    <div style="display:flex;gap:14px">
+      <a href="admin.html">管理后台</a>
+      <a href="index.html">返回社区原型</a>
+    </div>
   </header>
   <div class="shell">
     <section class="col">
@@ -113,7 +135,37 @@
     <section class="col">
       <div class="scroller" id="detail"></div>
     </section>
-    <section class="col" id="studio"></section>
+    <section class="col" id="right">
+      <div id="studio"></div>
+      <form class="model" id="modelForm">
+        <h3>模型选择</h3>
+        <p class="desc">走火山方舟同一把 API。选定模型后发送当前提示词，密钥只留在这台浏览器。</p>
+        <div class="model-grid" id="modelGrid"></div>
+        <p class="model-id" id="modelMeta"></p>
+        <label id="apiLabel">方舟 API<input id="apiKey" type="password" placeholder="ark-..." autocomplete="off"></label>
+        <div class="actions">
+          <button type="button" class="primary" id="sendModel">发送当前提示词</button>
+          <button type="button" id="stopModel">停止</button>
+        </div>
+        <p class="desc" id="modelStatus"></p>
+        <label for="modelOut">生成正文</label>
+        <textarea id="modelOut" placeholder="生成结果出现在这里，可以直接改"></textarea>
+        <label for="revisePrompt">修改优化</label>
+        <textarea id="revisePrompt" placeholder="写下要怎么改，例如把某一段写得更近一点，补一处衣着或动作的细节"></textarea>
+        <div class="actions">
+          <button type="button" id="reviseModel">按提示词修改</button>
+        </div>
+        <div class="file-row">
+          <label>提交人<input id="authorName" maxlength="40" placeholder="你的名字" autocomplete="nickname"></label>
+          <label>标题<input id="storyTitle" maxlength="80" placeholder="用正文第一行，也可以自己改"></label>
+          <label>同人标签<input id="storyTag" maxlength="80" placeholder="哪个 IP 或人"></label>
+        </div>
+        <div class="actions">
+          <button type="button" id="saveStory">保存</button>
+          <button type="button" class="primary" id="submitStory">提交</button>
+        </div>
+      </form>
+    </section>
   </div>
 </div>
 <script src="data/corpus.js"></script>
@@ -129,12 +181,12 @@ const CATS = [
 ];
 const LEADS = ["周屿", "沈析", "陈见", "江衡", "许晏", "林深", "顾迟", "宋衍"];
 const TEMPLATES = [
-  { id: "frame", name: "热帖骨架", desc: "先给一个现场，再用两三个场景把关系里的错位写清楚，标题必须是正文里能单独站住的一句话。" },
-  { id: "chase", name: "追妻火葬场", desc: "女主离开要有具体理由。男主的求和必须是一个行动，不能只靠认错、下雨或下跪。女主可以心软，但不立刻回到原来的位置。" },
-  { id: "marry", name: "先婚后爱", desc: "结婚理由要具体。用三件同住的小事改写关系，结尾是重新选择，不是突然热恋。" },
-  { id: "short", name: "单场景短打", desc: "只写一个晚上里的一个场景，对话占一半以上，篇幅压在一千五百字内。" },
-  { id: "sweet", name: "甜向日常", desc: "冲突当天能解开。允许吃醋和玩笑，不写羞辱。结尾落在一句日常话上。" },
-  { id: "mash", name: "标签混剪", desc: "同一篇里用上情节、气质、场景，以及至少两个关键词。标签打架时，保留更具体的那个，另一个改成误会或职业。" }
+  { id: "frame", name: "热帖骨架", desc: "走向：近距离开场，中间两次靠近又躲开，结尾停在舍不得松手的动作上。" },
+  { id: "chase", name: "追妻火葬场", desc: "走向：先写清离开的原因，再写她自己的一段日子，求和是一件具体的事，当天不复合。" },
+  { id: "marry", name: "先婚后爱", desc: "走向：结婚有具体理由，三件同住小事把人缠住，结尾是重新选择。" },
+  { id: "short", name: "单场景短打", desc: "走向：一个晚上的一件事，话黏在一起，停在几乎越界的地方。" },
+  { id: "sweet", name: "甜向日常", desc: "走向：小事引起的吃醋当天解开，结尾是一句只有两个人懂的软话。" },
+  { id: "mash", name: "标签混剪", desc: "走向：把情节、关系和场景串成一条线，中间有一次贴上去又停住。" }
 ];
 const PLACE = {
   校园: "大学南门外的梧桐荫里",
@@ -165,7 +217,8 @@ const state = {
   tone: "UGC",
   lead: "周屿",
   off: new Set(),
-  dirty: false,
+  dirtySystem: false,
+  dirtyUser: false,
   seed: 1,
   draft: null
 };
@@ -213,62 +266,73 @@ function endingLine() {
   if (state.ending === "开放") return "情绪停在未完成的地方。不写复合成功，也不写彻底决裂。";
   return "关系有明确的靠近。结尾落在一个具体动作上，不用宣誓式告白收束。";
 }
+function isYouPov() {
+  return state.pov === "第三人称" || state.pov === "第二人称";
+}
 function taskText() {
   const map = {
-    frame: "按这个顺序写：第一段八十个字内进入一个具体场景；接着用两到三个场景写出关系里的错位；最后停在一个动作上。不要作者出面总结。",
-    chase: "按这个顺序写：分手时把离开的理由写成具体的事，不要只写男方后来有多痛苦；中间写叙述者离开后自己的一段生活；求和必须是一个看得见的行动，例如改掉一份绑定对方的安排、当众澄清、或把对方独自扛过的事接下来。叙述者可以动摇，但不能在同一晚回到原来的关系。",
-    marry: "结婚的理由要具体，可以是家族、合约或各取所需。写三件同住时的小事，其中一件改变他们看对方的方式。如果标签里有带球跑，孩子只作为已经存在的生活事实，不写受孕过程。结尾是重新做一次选择，而不是突然热恋。",
-    short: "只写一个场景，时间不超过一个晚上。对话占一半以上。篇幅控制在一千五百字以内，即使上面的字数更高，也以短打为准。",
-    sweet: "冲突要小，并且在当天解开。可以吃醋、可以开玩笑，不写羞辱和报复。结尾是一句只有这两个人听得懂的日常话。",
-    mash: "必须同时用上给定的情节、气质和场景，并至少落到两个关键词上的物件或地点。如果两个标签互相打架，保留更具体的那个，把另一个写成误会、职业或一段已经过去的经历。"
+    frame: "先在一个很近的距离里开场。中间写两到三次靠近、躲开、又黏回来。结尾停在一个舍不得松手的动作上。",
+    chase: "开头写清她离开的具体原因。中间写她离开后自己的一小段日子。他来求和时要做一件看得见的事，比如改掉还绑着她的安排、当众把话说清，或把她一个人扛过的事接过去。她可以心软，但当天不回到原来的位置。",
+    marry: "开头交代结婚的具体理由，家族、合约或各取所需都可以。中间用三件同住的小事把两个人缠到一起，其中一件改变她看他的方式。如果生活里已经有孩子，孩子只作为在场的事实，不写受孕。结尾是她重新做一次选择。",
+    short: "只写一个晚上里的一件事。两个人的话来回黏着，走到一个几乎越界又停住的地方。篇幅控制在一千五百字以内。",
+    sweet: "由一件小事引起吃醋或误会，当天解开。可以开玩笑。结尾是一句只有这两个人听得懂的软话。",
+    mash: "把情节、关系和场景串成一条线。中间有一次几乎贴上去又停住的瞬间。两个设定互相打架时，保留更具体的那个，另一个写成已经过去的事。"
   };
-  return map[state.template] || map.frame;
+  const text = map[state.template] || map.frame;
+  return isYouPov() ? text.replace(/她/g, "你") : text;
 }
-function buildPrompt(s) {
-  if (!s) return "";
-  if (s.blocked) return "这篇素材不进入生成。\n" + s.blockReason;
-  const tags = activeTags(s);
-  const line = (cat) => (tags[cat] || []).join("、") || "无";
-  const pov = state.pov === "第二人称"
-    ? "用「你」作叙述者。对方只使用这个原创姓名：" + state.lead + "。"
-    : "用「我」作叙述者。对方只使用这个原创姓名：" + state.lead + "。";
-  const tone = state.tone === "PGC"
-    ? "PGC。句子收干净，少用网络口语，段落完整。"
-    : "UGC。可以有口语、吐槽和没说完的半句，像社区里的人在讲自己的事。";
-  const hook = s.hook ? "开头可以借用这句的语气，但不要复述，也不要沿用里面的人称安排：" + s.hook : "不提供原句。";
+function buildSystem() {
   return [
-    "【系统】",
-    "你是短篇小说作者，写一篇能单独发在短篇社区里的原创故事。",
+    "你是短篇社区的乙女向作者。按用户提示词里的走向，写一篇梦女短篇。",
+    "",
+    "文风：",
+    "擦边，黏糊，乙女，梦女。叙述者沉在被偏爱里。对方话软，动作近，叫她的时候舍不得放开。亲密停在呼吸、衣领、手腕、额头和没吻下去的距离。",
+    "需要细节描写。衣着、场景、物件、距离和手上的小动作可以写具体，让人站在现场。",
+    "多分段。对话单独成段。",
     "",
     "硬性约束：",
-    "1. 角色使用原创姓名。不出现真实明星、爱豆、主播或其他可识别的公众人物，也不要用谐音或缩写去影射他们。",
-    "2. 不复述、不改写任何已有帖子的句子、对白和情节桥段。关键词里如果像人名，直接丢掉。",
-    "3. 出场人物都是成年人。校园只写大学，或已经工作的人；不写中学阶段的恋爱和亲密接触。",
-    "4. 不写亲属之间的恋情。",
-    "5. 写关系怎么变化，写对话和生活细节。不做露骨的性行为描写。",
-    "6. " + pov,
-    "7. 文风：" + tone,
-    "8. 篇幅约 " + state.words + " 字。",
-    "9. 结局：" + state.ending + "。" + endingLine(),
+    "1. 不复述、不改写任何已有帖子的句子、对白和情节桥段。姓名以用户提示词为准。",
+    "2. 恋爱、亲密和擦边只写成年人。不写中学阶段的恋爱和亲密接触。",
+    "3. 不写亲属之间的恋情。",
+    "4. 不做露骨的性行为描写，不写裸露和器官。",
+    "5. 人称、对方姓名、篇幅、结局和走向，全部以用户提示词为准。用户提示词没写的情节，不要再加一条大支线。",
     "",
-    "【任务】" + (TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0]).name,
-    taskText(),
-    "",
-    "【标签】",
-    "情节：" + line("plot"),
-    "气质：" + line("persona"),
-    "关系：" + line("relation"),
-    "场景：" + line("setting"),
-    "情绪：" + line("mood"),
-    "写法：" + line("craft"),
-    "意象关键词：" + line("keywords"),
-    hook,
-    "",
-    "【输出】",
+    "输出：",
     "第一行只写标题。",
     "空一行后写正文。",
     "不要写创作说明，不要写标签列表。"
   ].join("\n");
+}
+function buildUserPrompt(s) {
+  if (!s) return "";
+  if (s.blocked) return "这篇素材不进入生成。\n" + s.blockReason;
+  const tags = activeTags(s);
+  const who = isYouPov() ? "你" : "我";
+  const tone = state.tone === "PGC"
+    ? "句子收干净，少用网络口头禅。段落仍然要短。"
+    : "可以有口语、撒娇和没说完的半句。";
+  const plot = (tags.plot || []).join("、") || "一段说不清的亲近";
+  const bits = [who + "和" + state.lead + "的故事，核心是" + plot + "。"];
+  if ((tags.relation || []).length) bits.push("两人目前是" + tags.relation.join("、") + "。");
+  if ((tags.persona || []).length) bits.push(state.lead + "给人的感觉是" + tags.persona.join("、") + "。");
+  if ((tags.setting || []).length) bits.push("场面放在" + tags.setting.join("、") + "。");
+  if ((tags.mood || []).length) bits.push("整篇的情绪是" + tags.mood.join("、") + "。");
+  const keywords = (tags.keywords || []).slice(0, 4);
+  const lines = [
+    isYouPov()
+      ? "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。"
+      : "人称：第一人称。用「我」作叙述者。对方只叫" + state.lead + "。",
+    "篇幅：大约 " + state.words + " 字。",
+    "结局：" + state.ending + "。" + endingLine(),
+    "口气：" + tone,
+    "",
+    "走向：",
+    bits.join(""),
+    taskText()
+  ];
+  if (keywords.length) lines.push("可以写成细节的物件：" + keywords.join("、") + "。");
+  lines.push("", "句子都写成新的。不要复述素材原句。");
+  return lines.join("\n");
 }
 
 function placeOf(settings) {
@@ -388,15 +452,19 @@ function renderDetail() {
     ${notes}
     ${groups || `<div class="empty">这篇没有抽出足够的标签，可以在右侧手动选择模板后再补。</div>`}
     ${s.hook ? `<div class="excerpt">可借语气：${esc(s.hook)}</div>` : ""}
-    ${s.excerpt ? `<div class="excerpt">${esc(s.excerpt)}</div>` : ""}
+    <div class="group">
+      <h3>原文</h3>
+      ${s.blocked ? `<div class="banner">${esc(s.blockReason)}。这篇原文不放入面板。</div>` : (s.content ? `<article class="origin">${esc(s.content)}</article>` : `<div class="empty">这篇没有读到正文。</div>`)}
+    </div>
   `;
 }
 function renderStudio() {
   const s = story();
-  const keptPrompt = state.dirty ? document.getElementById("prompt")?.value : "";
+  const keptSystem = state.dirtySystem ? document.getElementById("systemPrompt")?.value : "";
+  const keptPrompt = state.dirtyUser ? document.getElementById("prompt")?.value : "";
   const tpl = TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0];
-  const prompt = s ? buildPrompt(s) : "";
-  const draft = state.draft;
+  const system = buildSystem();
+  const prompt = s ? buildUserPrompt(s) : "";
   document.getElementById("studio").innerHTML = `
     <div class="studio-top">
       <div class="seg">${TEMPLATES.map(t => `<button type="button" data-tpl="${t.id}" class="${t.id === state.template ? "on" : ""}">${t.name}</button>`).join("")}</div>
@@ -404,34 +472,43 @@ function renderStudio() {
       <div class="controls">
         <label>字数<select id="words">${[1500, 2500, 4000].map(n => `<option ${n === state.words ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>结局<select id="ending">${["HE", "开放", "BE"].map(n => `<option ${n === state.ending ? "selected" : ""}>${n}</option>`).join("")}</select></label>
-        <label>人称<select id="pov">${["第一人称", "第二人称"].map(n => `<option ${n === state.pov ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>人称<select id="pov">${["第一人称", "第三人称"].map(n => `<option ${n === (isYouPov() ? "第三人称" : "第一人称") ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>文风<select id="tone">${["UGC", "PGC"].map(n => `<option ${n === state.tone ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>角色名<input id="lead" value="${esc(state.lead)}" maxlength="8"></label>
       </div>
     </div>
-    <textarea class="prompt" id="prompt" ${s && s.blocked ? "readonly" : ""}>${esc(prompt)}</textarea>
-    <p class="dirty" id="dirty" ${state.dirty ? "" : "hidden"}>提示词已手动改过。点「按标签重填」会覆盖这段文字。</p>
+    <p class="prompt-label">通用模板</p>
+    <textarea class="prompt system" id="systemPrompt">${esc(system)}</textarea>
+    <p class="prompt-label">用户提示词</p>
+    <textarea class="prompt user" id="prompt" ${s && s.blocked ? "readonly" : ""}>${esc(prompt)}</textarea>
+    <p class="dirty" id="dirty" ${state.dirtySystem || state.dirtyUser ? "" : "hidden"}>提示词已手动改过。点「按标签重填」会覆盖这两段。</p>
     <div class="actions">
       <button type="button" class="primary" id="copy">复制提示词</button>
       <button type="button" id="refill">按标签重填</button>
-      <button type="button" id="gen" ${!s || s.blocked ? "disabled" : ""}>生成结构试写</button>
-      <button type="button" id="reroll" ${!s || s.blocked ? "disabled" : ""}>换一稿</button>
       <button type="button" id="pack">导出当前筛选 5 条</button>
     </div>
-    ${draft ? `<article class="draft"><p class="tagline">结构试写 · 用来看标签和节奏，不是模型成稿 · ${esc(draft.tags.slice(0, 6).join(" / "))}</p><h3>${esc(draft.title)}</h3>${draft.paras.map(p => `<p>${esc(p)}</p>`).join("")}</article>` : ""}
   `;
+  const systemArea = document.getElementById("systemPrompt");
   const area = document.getElementById("prompt");
-  if (area) area.value = state.dirty && keptPrompt ? keptPrompt : prompt;
+  if (systemArea) systemArea.value = state.dirtySystem && keptSystem ? keptSystem : system;
+  if (area) area.value = state.dirtyUser && keptPrompt ? keptPrompt : prompt;
 }
 function selectStory(id, keepTemplate) {
   const s = data.stories.find(x => x.id === id);
   if (!s) return;
   state.id = id;
   state.off = new Set();
-  state.dirty = false;
+  state.dirtySystem = false;
+  state.dirtyUser = false;
   state.draft = null;
+  const modelOut = document.getElementById("modelOut");
+  if (modelOut) modelOut.value = "";
+  const tagInput = document.getElementById("storyTag");
+  if (tagInput) tagInput.value = (s.people || []).join("、");
+  const modelStatus = document.getElementById("modelStatus");
+  if (modelStatus) modelStatus.textContent = "";
   state.ending = s.ending === "BE" ? "BE" : "HE";
-  state.pov = (s.tags.craft || []).includes("第二人称") ? "第二人称" : "第一人称";
+  state.pov = (s.tags.craft || []).some(tag => tag === "第二人称" || tag === "第三人称") ? "第三人称" : "第一人称";
   if (!keepTemplate && !state.manualTemplate) state.template = pickTemplate(s);
   if (state.template === "short") state.words = 1500;
   render();
@@ -472,7 +549,7 @@ document.getElementById("detail").addEventListener("click", e => {
   if (state.off.has(key)) state.off.delete(key); else state.off.add(key);
   state.draft = null;
   renderDetail();
-  if (!state.dirty) renderStudio();
+  if (!state.dirtyUser) renderStudio();
   else document.getElementById("dirty").hidden = false;
 });
 document.getElementById("studio").addEventListener("click", async e => {
@@ -481,24 +558,16 @@ document.getElementById("studio").addEventListener("click", async e => {
     state.template = tpl.dataset.tpl;
     state.manualTemplate = true;
     if (state.template === "short") state.words = 1500;
-    state.dirty = false;
+    state.dirtyUser = false;
     renderStudio();
     return;
   }
-  if (e.target.id === "refill") { state.dirty = false; renderStudio(); }
+  if (e.target.id === "refill") { state.dirtySystem = false; state.dirtyUser = false; renderStudio(); }
   if (e.target.id === "copy") {
-    const text = document.getElementById("prompt").value;
+    const text = "【通用模板】\n" + document.getElementById("systemPrompt").value + "\n\n【用户提示词】\n" + document.getElementById("prompt").value;
     try { await navigator.clipboard.writeText(text); e.target.textContent = "已复制"; }
     catch { e.target.textContent = "请手动复制"; }
     setTimeout(() => { e.target.textContent = "复制提示词"; }, 1200);
-  }
-  if (e.target.id === "gen" || e.target.id === "reroll") {
-    const s = story();
-    if (!s || s.blocked) return;
-    if (e.target.id === "reroll") state.seed += 1;
-    state.lead = document.getElementById("lead").value.trim() || state.lead;
-    state.draft = buildDraft(s);
-    renderStudio();
   }
   if (e.target.id === "pack") {
     const rows = filtered().filter(s => !s.blocked).slice(0, 5);
@@ -508,7 +577,7 @@ document.getElementById("studio").addEventListener("click", async e => {
       state.off = new Set();
       state.seed = snapshot.seed + i;
       state.lead = LEADS[i % LEADS.length];
-      return { id: s.id, sourceTitle: s.title, prompt: buildPrompt(s), draft: buildDraft(s) };
+      return { id: s.id, sourceTitle: s.title, system: buildSystem(), prompt: buildUserPrompt(s) };
     });
     state.id = snapshot.id;
     state.off = snapshot.off;
@@ -520,15 +589,226 @@ document.getElementById("studio").addEventListener("click", async e => {
 document.getElementById("studio").addEventListener("change", e => {
   if (["words", "ending", "pov", "tone"].includes(e.target.id)) {
     state[e.target.id] = e.target.id === "words" ? Number(e.target.value) : e.target.value;
-    state.dirty = false;
+    state.dirtyUser = false;
     renderStudio();
   }
-  if (e.target.id === "lead") state.lead = e.target.value.trim() || "周屿";
+  if (e.target.id === "lead") {
+    state.lead = e.target.value.trim() || "周屿";
+    if (!state.dirtyUser) renderStudio();
+  }
 });
 document.getElementById("studio").addEventListener("input", e => {
-  if (e.target.id === "prompt") state.dirty = true;
+  if (e.target.id === "prompt") state.dirtyUser = true;
+  if (e.target.id === "systemPrompt") state.dirtySystem = true;
+  if (e.target.id === "prompt" || e.target.id === "systemPrompt") document.getElementById("dirty").hidden = false;
   if (e.target.id === "lead") state.lead = e.target.value.trim() || "周屿";
 });
+
+const MODEL_KEY = "storygen.model";
+const ARK = "https://ark.cn-beijing.volces.com/api/v3";
+const MODELS = [
+  { id: "deepseek-v4-1-flash-261017", name: "DeepSeek V4 Flash", vendor: "DeepSeek", base: ARK },
+  { id: "deepseek-v4-pro-ga-260813", name: "DeepSeek V4 Pro", vendor: "DeepSeek", base: ARK },
+  { id: "doubao-seed-2-0-pro-260215", name: "豆包 Seed 2.0 Pro", vendor: "豆包", base: ARK },
+  { id: "doubao-seed-2-1-pro-260915", name: "豆包 Seed 2.1 Pro", vendor: "豆包", base: ARK },
+  { id: "kimi-k3-1-pro-261024", name: "Kimi K3.1 Pro", vendor: "Kimi", base: ARK },
+  { id: "glm-5-2-260617", name: "智谱 GLM-5.2", vendor: "智谱", base: ARK }
+];
+let modelState = { modelId: MODELS[0].id, key: "" };
+function currentModel() {
+  return MODELS.find(m => m.id === modelState.modelId) || MODELS[0];
+}
+function modelErrorText(detail, modelId) {
+  const raw = String(detail || "");
+  let message = raw;
+  const start = raw.indexOf("{");
+  if (start >= 0) {
+    try {
+      const err = JSON.parse(raw.slice(start)).error || {};
+      message = err.message || err.code || raw;
+    } catch (e) {}
+  }
+  if (/\b401\b|AuthenticationError|authentication fails/i.test(raw)) {
+    return "方舟拒绝了这把密钥。请确认是火山方舟控制台的 ark- 密钥，并且当前账号开通了 " + modelId + "。";
+  }
+  if (/not activated|does not exist|not found|未开通|没有开通|AccessDenied|InvalidEndpoint/i.test(raw)) {
+    return "当前账号还不能调用 " + modelId + "。到火山方舟控制台开通这个模型后再试。接口说明：" + message;
+  }
+  return message || "模型请求失败";
+}
+function cleanKey(raw) {
+  const text = String(raw || "").replace(/[\u200b-\u200d\ufeff]/g, "").trim();
+  const found = text.match(/ark-[0-9a-fA-F]+(?:-[0-9a-fA-F]+)+/);
+  if (found) return found[0];
+  return text.replace(/^bearer\s+/i, "").replace(/^["']|["']$/g, "").trim();
+}
+function renderModelGrid() {
+  const current = currentModel();
+  document.getElementById("modelGrid").innerHTML = MODELS.map(m =>
+    `<button type="button" data-model="${esc(m.id)}" class="${m.id === current.id ? "on" : ""}">${esc(m.name)}</button>`
+  ).join("");
+  document.getElementById("modelMeta").textContent = current.vendor + " · " + current.id;
+  document.getElementById("apiKey").value = modelState.key || "";
+}
+function loadModel() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(MODEL_KEY) || "{}"); } catch (err) { saved = {}; }
+  const previous = saved.arkKey || saved.key || "";
+  if (String(previous).startsWith("ark-")) modelState.key = previous;
+  if (MODELS.some(m => m.id === saved.modelId)) modelState.modelId = saved.modelId;
+  renderModelGrid();
+}
+function saveModel() {
+  modelState.key = cleanKey(document.getElementById("apiKey").value);
+  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId: modelState.modelId, arkKey: modelState.key }));
+}
+let modelAbort = null;
+let modelReq = 0;
+document.getElementById("modelForm").addEventListener("submit", e => e.preventDefault());
+document.getElementById("modelGrid").addEventListener("click", e => {
+  const btn = e.target.closest("[data-model]");
+  if (!btn) return;
+  saveModel();
+  modelState.modelId = btn.dataset.model;
+  renderModelGrid();
+  saveModel();
+});
+document.getElementById("apiKey").addEventListener("change", saveModel);
+document.getElementById("stopModel").addEventListener("click", () => {
+  modelReq += 1;
+  if (modelAbort) modelAbort.abort();
+  document.getElementById("modelStatus").textContent = "已停止。";
+});
+const AUTHOR_KEY = "storygen.author";
+let storyRecordId = "";
+function apiUrl(path) {
+  return (location.protocol === "file:" ? "http://127.0.0.1:8765" : "") + path;
+}
+function firstLine(text) {
+  const line = String(text || "").split(/\n/).map(item => item.trim()).find(Boolean) || "";
+  return line.replace(/^标题[:：]\s*/, "").slice(0, 80);
+}
+function rememberAuthor() {
+  const name = document.getElementById("authorName").value.trim();
+  if (name) localStorage.setItem(AUTHOR_KEY, name);
+}
+async function askModel(userPrompt, pendingText) {
+  const status = document.getElementById("modelStatus");
+  const out = document.getElementById("modelOut");
+  const picked = currentModel();
+  const apiKey = cleanKey(document.getElementById("apiKey").value);
+  if (!apiKey) { status.textContent = "先填写方舟 API。"; return ""; }
+  document.getElementById("apiKey").value = apiKey;
+  saveModel();
+  const reqId = ++modelReq;
+  if (modelAbort) modelAbort.abort();
+  const controller = new AbortController();
+  modelAbort = controller;
+  status.textContent = pendingText;
+  const previous = out.value;
+  out.value = "";
+  try {
+    const res = await fetch(apiUrl("/api/chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: picked.base,
+        apiKey,
+        model: picked.id,
+        system: document.getElementById("systemPrompt")?.value || "",
+        prompt: userPrompt
+      }),
+      signal: controller.signal
+    });
+    if (reqId !== modelReq) return "";
+    if (!res.ok) {
+      out.value = previous;
+      status.textContent = modelErrorText(await res.text(), picked.id);
+      return "";
+    }
+    status.textContent = "已接通，正在写…";
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = "";
+    while (true) {
+      const step = await reader.read();
+      if (reqId !== modelReq) return "";
+      if (step.done) break;
+      acc += dec.decode(step.value, { stream: true });
+      out.value = acc;
+    }
+    if (reqId !== modelReq) return "";
+    const title = document.getElementById("storyTitle");
+    if (title && !title.value.trim()) title.value = firstLine(acc);
+    status.textContent = acc ? "模型已返回。可以直接改，再保存或提交。" : "模型没有返回正文。";
+    return acc;
+  } catch (err) {
+    if (reqId !== modelReq) return "";
+    if (!out.value) out.value = previous;
+    if (err.name === "AbortError") status.textContent = "已停止。";
+    else status.textContent = "没有连上本机转发。在项目目录运行 python tools/serve.py，然后打开 http://127.0.0.1:8765/studio.html";
+    return "";
+  }
+}
+document.getElementById("sendModel").addEventListener("click", () => {
+  const s = story();
+  const status = document.getElementById("modelStatus");
+  if (!s || s.blocked) { status.textContent = "当前素材不进入生成。"; return; }
+  const prompt = document.getElementById("prompt")?.value || "";
+  if (!prompt.trim()) { status.textContent = "先写用户提示词。"; return; }
+  storyRecordId = "";
+  askModel(prompt, "正在请求模型…");
+});
+document.getElementById("reviseModel").addEventListener("click", () => {
+  const status = document.getElementById("modelStatus");
+  const current = document.getElementById("modelOut").value.trim();
+  const note = document.getElementById("revisePrompt").value.trim();
+  if (!current) { status.textContent = "先有一篇正文，再写修改要求。"; return; }
+  if (!note) { status.textContent = "先写下要怎么改。"; return; }
+  const prompt = [
+    "下面是一篇已经写好的短篇。按修改要求改一版，直接给出改后的全文。",
+    "第一行仍然只写标题。",
+    "",
+    "修改要求：",
+    note,
+    "",
+    "原文：",
+    current
+  ].join("\n");
+  askModel(prompt, "正在按修改要求重写…");
+});
+async function storeStory(statusName) {
+  const status = document.getElementById("modelStatus");
+  const content = document.getElementById("modelOut").value.trim();
+  const author = document.getElementById("authorName").value.trim();
+  const title = document.getElementById("storyTitle").value.trim() || firstLine(content);
+  const tag = document.getElementById("storyTag").value.trim();
+  if (!content) { status.textContent = "正文是空的。"; return; }
+  if (statusName === "submitted" && !author) { status.textContent = "先填写提交人。"; return; }
+  if (statusName === "submitted" && !tag) { status.textContent = "先填写同人标签，写明是哪个 IP 或人。"; return; }
+  document.getElementById("storyTitle").value = title;
+  rememberAuthor();
+  status.textContent = statusName === "submitted" ? "正在提交…" : "正在保存…";
+  try {
+    const res = await fetch(apiUrl("/api/submissions"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: storyRecordId, status: statusName, author, title, tag, content })
+    });
+    const raw = await res.text();
+    if (!res.ok) { status.textContent = raw || "没有保存成功。"; return; }
+    const data = JSON.parse(raw);
+    storyRecordId = data.item && data.item.id || storyRecordId;
+    status.textContent = statusName === "submitted" ? "已提交。可以在管理后台查看。" : "已保存。";
+  } catch (err) {
+    status.textContent = "没有连上本机转发。保存和提交也要先打开 http://127.0.0.1:8765/studio.html";
+  }
+}
+document.getElementById("saveStory").addEventListener("click", () => storeStory("saved"));
+document.getElementById("submitStory").addEventListener("click", () => storeStory("submitted"));
+loadModel();
+const savedAuthor = localStorage.getItem(AUTHOR_KEY);
+if (savedAuthor) document.getElementById("authorName").value = savedAuthor;
 
 if (!data || !data.stories) {
   document.getElementById("summary").textContent = "没有读到 data/corpus.js";

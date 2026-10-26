@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>投稿管理</title>
+<style>
+  :root { --bg: #e7e7ea; --card: #fff; --ink: #222; --muted: #8a8a8a; --line: #eee; --blue: #3b86e8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  .app { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+  h1 { margin: 0; font-size: 20px; }
+  a { color: var(--blue); font-size: 13px; text-decoration: none; }
+  .nav { display: flex; gap: 14px; }
+  p.desc { color: var(--muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 16px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+  th { color: #666; font-size: 12px; font-weight: 650; background: #fafafa; }
+  tr { cursor: pointer; }
+  tr.on { background: #f3f7fd; }
+  .body { white-space: pre-wrap; line-height: 1.75; background: var(--card); border-radius: 16px; padding: 16px 18px; margin-top: 12px; }
+  .empty { color: var(--muted); padding: 20px; background: var(--card); border-radius: 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>投稿管理</h1>
+      <p class="desc" id="summary">正在读取提交…</p>
+    </div>
+    <div class="nav">
+      <a href="studio.html">返回生成面板</a>
+      <a href="index.html">社区原型</a>
+    </div>
+  </header>
+  <div id="list"></div>
+  <article class="body" id="detail" hidden></article>
+</div>
+<script>
+const root = location.protocol === "file:" ? "http://127.0.0.1:8765" : "";
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function when(value) {
+  if (!value) return "";
+  return String(value).replace("T", " ").slice(0, 16);
+}
+let items = [];
+function render(activeId) {
+  const box = document.getElementById("list");
+  const detail = document.getElementById("detail");
+  if (!items.length) {
+    box.innerHTML = `<div class="empty">还没有提交。</div>`;
+    detail.hidden = true;
+    return;
+  }
+  box.innerHTML = `<table><thead><tr><th>提交人</th><th>标题</th><th>标签</th><th>时间</th></tr></thead><tbody>${
+    items.map(item => `<tr data-id="${esc(item.id)}" class="${item.id === activeId ? "on" : ""}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.updatedAt || item.createdAt))}</td></tr>`).join("")
+  }</tbody></table>`;
+  const current = items.find(item => item.id === activeId) || null;
+  detail.hidden = !current;
+  if (current) detail.textContent = current.content || "";
+}
+document.getElementById("list").addEventListener("click", e => {
+  const row = e.target.closest("[data-id]");
+  if (!row) return;
+  render(row.dataset.id);
+});
+fetch(root + "/api/submissions").then(res => {
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}).then(data => {
+  items = data.items || [];
+  document.getElementById("summary").textContent = items.length ? `已提交 ${items.length} 篇。点一行可以看正文。标签是这篇同人写的 IP 或人。` : "还没有人提交。";
+  render(items[0] && items[0].id);
+}).catch(() => {
+  document.getElementById("summary").textContent = "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html";
+  document.getElementById("list").innerHTML = `<div class="empty">管理后台要跟生成面板用同一个地址打开。</div>`;
+});
+</script>
+</body>
+</html>
