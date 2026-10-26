@@ -89,7 +89,10 @@
   .controls label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
   .prompt-label { margin: 12px 10px 0; color: #666; font-size: 12px; }
   .prompt { display: block; width: calc(100% - 20px); margin: 6px 10px 0; min-height: 140px; height: 180px; resize: vertical; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fbfbfc; font-size: 12.5px; line-height: 1.65; }
-  .prompt.user { height: 420px; min-height: 320px; }
+  .beats { margin: 0 10px 8px; }
+  .beat-label { margin: 10px 0 0; color: #666; font-size: 12px; }
+  .beat-label b { color: #222; margin-right: 6px; }
+  .prompt.beat { width: 100%; height: 84px; min-height: 72px; margin: 4px 0 0; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
   .actions .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
   .draft { margin: 0 14px 16px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; }
@@ -269,21 +272,61 @@ function endingLine() {
 function isYouPov() {
   return state.pov === "第三人称" || state.pov === "第二人称";
 }
-function taskText() {
+function beatDraft(s) {
+  const blank = { qi: "", cheng: "", zhuan: "", he: "" };
+  if (!s || s.blocked) return blank;
+  const tags = activeTags(s);
+  const who = isYouPov() ? "你" : "我";
+  const name = state.lead;
+  const plot = (tags.plot || []).join("、");
+  const place = (tags.setting || []).join("、");
+  const scene = place ? "场面放在" + place + "。" : "";
+  const core = plot ? "这件事的核心是" + plot + "。" : "";
   const map = {
-    frame: "先在一个很近的距离里开场。中间写两到三次靠近、躲开、又黏回来。结尾停在一个舍不得松手的动作上。",
-    chase: "开头写清她离开的具体原因。中间写她离开后自己的一小段日子。他来求和时要做一件看得见的事，比如改掉还绑着她的安排、当众把话说清，或把她一个人扛过的事接过去。她可以心软，但当天不回到原来的位置。",
-    marry: "开头交代结婚的具体理由，家族、合约或各取所需都可以。中间用三件同住的小事把两个人缠到一起，其中一件改变她看他的方式。如果生活里已经有孩子，孩子只作为在场的事实，不写受孕。结尾是她重新做一次选择。",
-    short: "只写一个晚上里的一件事。两个人的话来回黏着，走到一个几乎越界又停住的地方。篇幅控制在一千五百字以内。",
-    sweet: "由一件小事引起吃醋或误会，当天解开。可以开玩笑。结尾是一句只有这两个人听得懂的软话。",
-    mash: "把情节、关系和场景串成一条线。中间有一次几乎贴上去又停住的瞬间。两个设定互相打架时，保留更具体的那个，另一个写成已经过去的事。"
+    frame: {
+      qi: core + scene + who + "和" + name + "在很近的距离里开场。",
+      cheng: "两人靠近一次，又躲开。用一件小事把关系里的错位写出来。",
+      zhuan: "再靠近一次。一件具体的事把关系拧住。",
+      he: "停在一个舍不得松手的动作上。"
+    },
+    chase: {
+      qi: core + "写清她离开的具体原因。",
+      cheng: "她离开后自己过了一小段日子。",
+      zhuan: "他做一件看得见的事来求和，比如改掉还绑着她的安排、当众把话说清，或把她一个人扛过的事接过去。",
+      he: "她可以心软，但当天不回到原来的位置。"
+    },
+    marry: {
+      qi: core + "交代结婚的具体理由，家族、合约或各取所需都可以。",
+      cheng: "同住里的两件小事把两个人缠到一起。",
+      zhuan: "第三件小事改变她看他的方式。如果生活里已经有孩子，孩子只作为在场的事实。",
+      he: "她重新做一次选择。"
+    },
+    short: {
+      qi: scene + "只写一个晚上里的一件事，" + who + "和" + name + "已经挨得很近。",
+      cheng: "话来回黏着，动作一次比一次近。",
+      zhuan: "走到一个几乎越界又停住的地方。",
+      he: "这个晚上停在这里，不把以后写完。"
+    },
+    sweet: {
+      qi: core + "一件小事引起吃醋或误会。",
+      cheng: "两人围着这件事打转，可以开玩笑。",
+      zhuan: "误会在当天被一件具体的小事解开。",
+      he: "结尾是一句只有这两个人听得懂的软话。"
+    },
+    mash: {
+      qi: core + scene + who + "和" + name + "相遇。",
+      cheng: "顺着关系和场景往下写，让两个人越靠越近。",
+      zhuan: "出现一次几乎贴上去又停住的瞬间。两个设定打架时，保留更具体的那个。",
+      he: "收在一个还没说完的动作上。"
+    }
   };
-  const text = map[state.template] || map.frame;
-  return isYouPov() ? text.replace(/她/g, "你") : text;
+  const beats = map[state.template] || map.frame;
+  if (!isYouPov()) return beats;
+  return Object.fromEntries(Object.entries(beats).map(([key, value]) => [key, value.replace(/她/g, "你")]));
 }
 function buildSystem() {
   return [
-    "你是短篇社区的乙女向作者。按用户提示词里的走向，写一篇梦女短篇。",
+    "你是短篇社区的乙女向作者。按用户提示词里的起、承、转、合，写一篇梦女短篇。用户若写了重点，重点必须出现在正文里，优先于起承转合。",
     "",
     "文风：",
     "擦边，黏糊，乙女，梦女。叙述者沉在被偏爱里。对方话软，动作近，叫她的时候舍不得放开。亲密停在呼吸、衣领、手腕、额头和没吻下去的距离。",
@@ -293,9 +336,9 @@ function buildSystem() {
     "硬性约束：",
     "1. 不复述、不改写任何已有帖子的句子、对白和情节桥段。姓名以用户提示词为准。",
     "2. 恋爱、亲密和擦边只写成年人。不写中学阶段的恋爱和亲密接触。",
-    "3. 不写亲属之间的恋情。",
-    "4. 不做露骨的性行为描写，不写裸露和器官。",
-    "5. 人称、对方姓名、篇幅、结局和走向，全部以用户提示词为准。用户提示词没写的情节，不要再加一条大支线。",
+    "3. 不做露骨的性行为描写，不写裸露和器官。",
+    "4. 人称、对方姓名、篇幅、结局和起承转合，全部以用户提示词为准。用户没写的节点不要自行加一条大支线。",
+    "5. 用户写了重点时，重点必须出现在正文里，优先于起承转合。",
     "",
     "输出：",
     "第一行只写标题。",
@@ -307,17 +350,12 @@ function buildUserPrompt(s) {
   if (!s) return "";
   if (s.blocked) return "这篇素材不进入生成。\n" + s.blockReason;
   const tags = activeTags(s);
-  const who = isYouPov() ? "你" : "我";
   const tone = state.tone === "PGC"
     ? "句子收干净，少用网络口头禅。段落仍然要短。"
     : "可以有口语、撒娇和没说完的半句。";
-  const plot = (tags.plot || []).join("、") || "一段说不清的亲近";
-  const bits = [who + "和" + state.lead + "的故事，核心是" + plot + "。"];
-  if ((tags.relation || []).length) bits.push("两人目前是" + tags.relation.join("、") + "。");
-  if ((tags.persona || []).length) bits.push(state.lead + "给人的感觉是" + tags.persona.join("、") + "。");
-  if ((tags.setting || []).length) bits.push("场面放在" + tags.setting.join("、") + "。");
-  if ((tags.mood || []).length) bits.push("整篇的情绪是" + tags.mood.join("、") + "。");
   const keywords = (tags.keywords || []).slice(0, 4);
+  const beats = beatDraft(s);
+  const focus = (document.getElementById("beatFocus")?.value || "").trim();
   const lines = [
     isYouPov()
       ? "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。"
@@ -326,12 +364,44 @@ function buildUserPrompt(s) {
     "结局：" + state.ending + "。" + endingLine(),
     "口气：" + tone,
     "",
-    "走向：",
-    bits.join(""),
-    taskText()
+    "起：" + beats.qi,
+    "承：" + beats.cheng,
+    "转：" + beats.zhuan,
+    "合：" + beats.he
   ];
+  if (focus) lines.push("重点：" + focus);
   if (keywords.length) lines.push("可以写成细节的物件：" + keywords.join("、") + "。");
-  lines.push("", "句子都写成新的。不要复述素材原句。");
+  lines.push("句子都写成新的。不要复述素材原句。");
+  return lines.join("\n");
+}
+function collectUserPrompt() {
+  const beats = {
+    qi: document.getElementById("beatQi")?.value.trim() || "",
+    cheng: document.getElementById("beatCheng")?.value.trim() || "",
+    zhuan: document.getElementById("beatZhuan")?.value.trim() || "",
+    he: document.getElementById("beatHe")?.value.trim() || ""
+  };
+  const focus = document.getElementById("beatFocus")?.value.trim() || "";
+  const whoLine = isYouPov()
+    ? "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。"
+    : "人称：第一人称。用「我」作叙述者。对方只叫" + state.lead + "。";
+  const tone = state.tone === "PGC"
+    ? "句子收干净，少用网络口头禅。段落仍然要短。"
+    : "可以有口语、撒娇和没说完的半句。";
+  const lines = [
+    whoLine,
+    "篇幅：大约 " + state.words + " 字。",
+    "结局：" + state.ending + "。" + endingLine(),
+    "口气：" + tone,
+    "",
+    "起：" + beats.qi,
+    "承：" + beats.cheng,
+    "转：" + beats.zhuan,
+    "合：" + beats.he
+  ];
+  if (focus) lines.push("重点：" + focus);
+  lines.push("按这四个节点写，没填的节点不要自行扩成一条新支线。");
+  lines.push("句子都写成新的。不要复述素材原句。");
   return lines.join("\n");
 }
 
@@ -461,10 +531,18 @@ function renderDetail() {
 function renderStudio() {
   const s = story();
   const keptSystem = state.dirtySystem ? document.getElementById("systemPrompt")?.value : "";
-  const keptPrompt = state.dirtyUser ? document.getElementById("prompt")?.value : "";
+  const keptFocus = document.getElementById("beatFocus")?.value || "";
+  const keptBeats = state.dirtyUser ? {
+    qi: document.getElementById("beatQi")?.value || "",
+    cheng: document.getElementById("beatCheng")?.value || "",
+    zhuan: document.getElementById("beatZhuan")?.value || "",
+    he: document.getElementById("beatHe")?.value || "",
+    focus: keptFocus
+  } : null;
   const tpl = TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0];
   const system = buildSystem();
-  const prompt = s ? buildUserPrompt(s) : "";
+  const beats = keptBeats || (s ? beatDraft(s) : { qi: "", cheng: "", zhuan: "", he: "" });
+  const locked = s && s.blocked ? "readonly" : "";
   document.getElementById("studio").innerHTML = `
     <div class="studio-top">
       <div class="seg">${TEMPLATES.map(t => `<button type="button" data-tpl="${t.id}" class="${t.id === state.template ? "on" : ""}">${t.name}</button>`).join("")}</div>
@@ -480,8 +558,19 @@ function renderStudio() {
     <p class="prompt-label">通用模板</p>
     <textarea class="prompt system" id="systemPrompt">${esc(system)}</textarea>
     <p class="prompt-label">用户提示词</p>
-    <textarea class="prompt user" id="prompt" ${s && s.blocked ? "readonly" : ""}>${esc(prompt)}</textarea>
-    <p class="dirty" id="dirty" ${state.dirtySystem || state.dirtyUser ? "" : "hidden"}>提示词已手动改过。点「按标签重填」会覆盖这两段。</p>
+    <div class="beats">
+      <p class="beat-label"><b>起</b>开场，可以直接改</p>
+      <textarea class="prompt beat" id="beatQi" ${locked}>${esc(beats.qi)}</textarea>
+      <p class="beat-label"><b>承</b>往下发展，可以直接改</p>
+      <textarea class="prompt beat" id="beatCheng" ${locked}>${esc(beats.cheng)}</textarea>
+      <p class="beat-label"><b>转</b>发生变故，可以直接改</p>
+      <textarea class="prompt beat" id="beatZhuan" ${locked}>${esc(beats.zhuan)}</textarea>
+      <p class="beat-label"><b>合</b>收束，可以直接改</p>
+      <textarea class="prompt beat" id="beatHe" ${locked}>${esc(beats.he)}</textarea>
+      <p class="beat-label"><b>重点提示词</b>必须写进正文，可以直接改</p>
+      <textarea class="prompt beat" id="beatFocus" placeholder="这一篇最要写出的东西，比如某个动作、一句话或一种感觉" ${locked}>${esc(keptBeats ? keptBeats.focus : keptFocus)}</textarea>
+    </div>
+    <p class="dirty" id="dirty" ${state.dirtySystem || state.dirtyUser ? "" : "hidden"}>起承转合或重点已手动改过。点「按标签重填」会覆盖起承转合这四格，重点会留下。</p>
     <div class="actions">
       <button type="button" class="primary" id="copy">复制提示词</button>
       <button type="button" id="refill">按标签重填</button>
@@ -489,9 +578,15 @@ function renderStudio() {
     </div>
   `;
   const systemArea = document.getElementById("systemPrompt");
-  const area = document.getElementById("prompt");
   if (systemArea) systemArea.value = state.dirtySystem && keptSystem ? keptSystem : system;
-  if (area) area.value = state.dirtyUser && keptPrompt ? keptPrompt : prompt;
+  if (keptBeats) {
+    document.getElementById("beatQi").value = keptBeats.qi;
+    document.getElementById("beatCheng").value = keptBeats.cheng;
+    document.getElementById("beatZhuan").value = keptBeats.zhuan;
+    document.getElementById("beatHe").value = keptBeats.he;
+  }
+  const focusArea = document.getElementById("beatFocus");
+  if (focusArea) focusArea.value = keptBeats ? keptBeats.focus : keptFocus;
 }
 function selectStory(id, keepTemplate) {
   const s = data.stories.find(x => x.id === id);
@@ -501,6 +596,8 @@ function selectStory(id, keepTemplate) {
   state.dirtySystem = false;
   state.dirtyUser = false;
   state.draft = null;
+  const focus = document.getElementById("beatFocus");
+  if (focus) focus.value = "";
   const modelOut = document.getElementById("modelOut");
   if (modelOut) modelOut.value = "";
   const tagInput = document.getElementById("storyTag");
@@ -564,7 +661,7 @@ document.getElementById("studio").addEventListener("click", async e => {
   }
   if (e.target.id === "refill") { state.dirtySystem = false; state.dirtyUser = false; renderStudio(); }
   if (e.target.id === "copy") {
-    const text = "【通用模板】\n" + document.getElementById("systemPrompt").value + "\n\n【用户提示词】\n" + document.getElementById("prompt").value;
+    const text = "【通用模板】\n" + document.getElementById("systemPrompt").value + "\n\n【用户提示词】\n" + collectUserPrompt();
     try { await navigator.clipboard.writeText(text); e.target.textContent = "已复制"; }
     catch { e.target.textContent = "请手动复制"; }
     setTimeout(() => { e.target.textContent = "复制提示词"; }, 1200);
@@ -589,7 +686,6 @@ document.getElementById("studio").addEventListener("click", async e => {
 document.getElementById("studio").addEventListener("change", e => {
   if (["words", "ending", "pov", "tone"].includes(e.target.id)) {
     state[e.target.id] = e.target.id === "words" ? Number(e.target.value) : e.target.value;
-    state.dirtyUser = false;
     renderStudio();
   }
   if (e.target.id === "lead") {
@@ -598,9 +694,9 @@ document.getElementById("studio").addEventListener("change", e => {
   }
 });
 document.getElementById("studio").addEventListener("input", e => {
-  if (e.target.id === "prompt") state.dirtyUser = true;
+  if (["beatQi", "beatCheng", "beatZhuan", "beatHe", "beatFocus"].includes(e.target.id)) state.dirtyUser = true;
   if (e.target.id === "systemPrompt") state.dirtySystem = true;
-  if (e.target.id === "prompt" || e.target.id === "systemPrompt") document.getElementById("dirty").hidden = false;
+  if (["beatQi", "beatCheng", "beatZhuan", "beatHe", "beatFocus", "systemPrompt"].includes(e.target.id)) document.getElementById("dirty").hidden = false;
   if (e.target.id === "lead") state.lead = e.target.value.trim() || "周屿";
 });
 
@@ -754,8 +850,11 @@ document.getElementById("sendModel").addEventListener("click", () => {
   const s = story();
   const status = document.getElementById("modelStatus");
   if (!s || s.blocked) { status.textContent = "当前素材不进入生成。"; return; }
-  const prompt = document.getElementById("prompt")?.value || "";
-  if (!prompt.trim()) { status.textContent = "先写用户提示词。"; return; }
+  const prompt = collectUserPrompt();
+  if (!["beatQi", "beatCheng", "beatZhuan", "beatHe"].some(id => document.getElementById(id).value.trim())) {
+    status.textContent = "先填写起承转合。";
+    return;
+  }
   storyRecordId = "";
   askModel(prompt, "正在请求模型…");
 });
