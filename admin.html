@@ -20,6 +20,10 @@
   tr { cursor: pointer; }
   tr:hover td { background: #f7f9fc; }
   .empty { color: var(--muted); padding: 20px; background: var(--card); border-radius: 16px; }
+  td.ops { width: 1%; white-space: nowrap; }
+  button { height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid #e6e6e6; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+  button.danger { border-color: #f0d0d0; color: #c44747; }
+  .nav a.on { font-weight: 650; }
 </style>
 </head>
 <body>
@@ -30,13 +34,19 @@
       <p class="desc" id="summary">正在读取提交…</p>
     </div>
     <div class="nav">
+      <a href="admin.html" id="tabList">投稿</a>
+      <a href="admin.html?bin=1" id="tabBin">回收站</a>
       <a href="studio.html">返回生成面板</a>
     </div>
   </header>
   <div id="list"></div>
 </div>
 <script>
-const local = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
+const bin = new URLSearchParams(location.search).get("bin") === "1";
+let canManage = onLocalHost;
+document.getElementById(bin ? "tabBin" : "tabList").classList.add("on");
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -45,36 +55,96 @@ function when(value) {
   return String(value).replace("T", " ").slice(0, 16);
 }
 let items = [];
+function summaryText() {
+  if (!items.length) return bin ? "回收站是空的。" : "还没有人提交。";
+  if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。`;
+  if (canManage) return `已提交 ${items.length} 篇。双击改正文，删除后进入回收站。`;
+  return `已提交 ${items.length} 篇。双击可以查看正文。`;
+}
 function render() {
   const box = document.getElementById("list");
+  document.getElementById("summary").textContent = summaryText();
   if (!items.length) {
-    box.innerHTML = `<div class="empty">还没有提交。</div>`;
+    box.innerHTML = `<div class="empty">${bin ? "回收站是空的。" : "还没有提交。"}</div>`;
     return;
   }
-  box.innerHTML = `<table><thead><tr><th>提交人</th><th>标题</th><th>标签</th><th>时间</th></tr></thead><tbody>${
-    items.map(item => `<tr data-id="${esc(item.id)}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.updatedAt || item.createdAt))}</td></tr>`).join("")
+  const opsHead = canManage ? "<th></th>" : "";
+  const opsCell = item => {
+    if (!canManage) return "";
+    if (bin) {
+      return `<td class="ops"><button type="button" data-action="restore">恢复</button> <button type="button" class="danger" data-action="purge">彻底删除</button></td>`;
+    }
+    return `<td class="ops"><button type="button" class="danger" data-action="delete">删除</button></td>`;
+  };
+  box.innerHTML = `<table><thead><tr><th>提交人</th><th>标题</th><th>标签</th><th>时间</th>${opsHead}</tr></thead><tbody>${
+    items.map(item => `<tr data-id="${esc(item.id)}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.deletedAt || item.updatedAt || item.createdAt))}</td>${opsCell(item)}</tr>`).join("")
   }</tbody></table>`;
 }
 document.getElementById("list").addEventListener("dblclick", e => {
+  if (e.target.closest("button")) return;
   const row = e.target.closest("[data-id]");
-  if (!row) return;
+  if (!row || bin) return;
   location.href = "admin-edit.html?id=" + encodeURIComponent(row.dataset.id);
 });
-fetch(local ? "/api/submissions" : "data/public-submissions.json").then(res => {
+document.getElementById("list").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn || !canManage) return;
+  const row = btn.closest("[data-id]");
+  if (!row) return;
+  const id = row.dataset.id;
+  const action = btn.dataset.action;
+  const item = items.find(rowItem => rowItem.id === id);
+  const name = item && item.title ? item.title : "这篇";
+  if (action === "delete" && !confirm(`把「${name}」放进回收站？`)) return;
+  if (action === "purge" && !confirm(`彻底删除「${name}」？回收站里也不会留下。`)) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(apiRoot + "/api/submissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action })
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      document.getElementById("summary").textContent = raw || "没有完成。";
+      btn.disabled = false;
+      return;
+    }
+    items = items.filter(rowItem => rowItem.id !== id);
+    render();
+  } catch (err) {
+    document.getElementById("summary").textContent = "没有连上本机转发。";
+    btn.disabled = false;
+  }
+});
+function applyRows(data) {
+  const rows = Array.isArray(data) ? data : (data.items || []);
+  items = rows.filter(item => bin ? item.status === "deleted" : (!item.status || item.status === "submitted"));
+  render();
+}
+function showOffline() {
+  canManage = false;
+  document.getElementById("summary").textContent = bin
+    ? "回收站要连着本机转发。先运行 python tools/serve.py。"
+    : (onLocalHost ? "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html" : "还没有公开的投稿。");
+  document.getElementById("list").innerHTML = `<div class="empty">${bin || onLocalHost ? "管理后台要跟生成面板用同一个地址打开。" : "还没有提交。"}</div>`;
+}
+const liveUrl = apiRoot + "/api/submissions" + (bin ? "?status=deleted" : "");
+fetch(liveUrl).then(res => {
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
 }).then(data => {
-  const rows = Array.isArray(data) ? data : (data.items || []);
-  items = rows.filter(item => !item.status || item.status === "submitted");
-  document.getElementById("summary").textContent = items.length
-    ? (local ? `已提交 ${items.length} 篇。双击一条记录，进入单独页面改正文。` : `已提交 ${items.length} 篇。双击可以查看正文。`)
-    : "还没有人提交。";
-  render();
+  canManage = true;
+  applyRows(data);
 }).catch(() => {
-  document.getElementById("summary").textContent = local
-    ? "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html"
-    : "还没有公开的投稿。";
-  document.getElementById("list").innerHTML = `<div class="empty">${local ? "管理后台要跟生成面板用同一个地址打开。" : "还没有提交。"}</div>`;
+  if (onLocalHost || bin) { showOffline(); return; }
+  fetch("data/public-submissions.json").then(res => {
+    if (!res.ok) throw new Error(String(res.status));
+    return res.json();
+  }).then(data => {
+    canManage = false;
+    applyRows(data);
+  }).catch(showOffline);
 });
 </script>
 </body>

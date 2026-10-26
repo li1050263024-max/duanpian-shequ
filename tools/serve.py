@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,6 +148,36 @@ def upsert_submission(body):
         return dict(found), ""
 
 
+def change_submission(body):
+    action = str(body.get("action") or "")
+    incoming_id = clip(body.get("id"), 40)
+    if action not in ("delete", "restore", "purge") or not incoming_id:
+        return None, "没有这条记录"
+    now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    with STORE_LOCK:
+        items = load_submissions()
+        found = None
+        for item in items:
+            if item.get("id") == incoming_id:
+                found = item
+                break
+        if found is None:
+            return None, "没有这条记录"
+        if action == "purge":
+            kept = [item for item in items if item.get("id") != incoming_id]
+            write_submissions(kept)
+            return {"id": incoming_id, "status": "purged"}, ""
+        if action == "delete":
+            found["status"] = "deleted"
+            found["deletedAt"] = now
+        else:
+            found["status"] = "submitted"
+            found.pop("deletedAt", None)
+        found["updatedAt"] = now
+        write_submissions(items)
+        return dict(found), ""
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -165,10 +195,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = self.path.split("?", 1)[0]
-        if path == "/api/submissions":
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/submissions":
+            want = (parse_qs(parsed.query).get("status") or ["submitted"])[0]
+            if want not in ("submitted", "deleted"):
+                want = "submitted"
             with STORE_LOCK:
-                items = [item for item in load_submissions() if item.get("status") == "submitted"]
+                items = [item for item in load_submissions() if item.get("status") == want]
             self._json(200, {"items": items})
             return
         super().do_GET()
@@ -315,7 +348,10 @@ class Handler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             self._text(400, "请求不是 JSON")
             return
-        item, err = upsert_submission(body)
+        if body.get("action"):
+            item, err = change_submission(body)
+        else:
+            item, err = upsert_submission(body)
         if err:
             self._text(400, err)
             return

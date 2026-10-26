@@ -19,6 +19,7 @@
   input, textarea { border: 1px solid #e6e6e6; border-radius: 10px; background: #fbfbfc; padding: 10px 12px; font-size: 14px; }
   textarea { min-height: 420px; line-height: 1.75; resize: vertical; }
   button { margin-top: 14px; height: 36px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; cursor: pointer; }
+  button.danger { margin-left: 8px; background: #fff; color: #c44747; border: 1px solid #f0d0d0; }
   .empty { color: var(--muted); padding: 20px; background: var(--card); border-radius: 16px; }
 </style>
 </head>
@@ -37,11 +38,13 @@
     <label>同人标签<input id="tag" maxlength="80"></label>
     <label>正文<textarea id="content"></textarea></label>
     <button type="submit" id="save">保存</button>
+    <button type="button" class="danger" id="remove" hidden>删除</button>
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
 <script>
-const local = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
+const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
 const id = new URLSearchParams(location.search).get("id") || "";
 const summary = document.getElementById("summary");
 const form = document.getElementById("editor");
@@ -59,26 +62,41 @@ if (!id) {
   summary.textContent = "没有指定记录。";
   missing.hidden = false;
 } else {
-  fetch(local ? "/api/submissions" : "data/public-submissions.json").then(res => {
+  function showItem(item, manage) {
+    fill(item);
+    if (!manage) {
+      document.getElementById("save").hidden = true;
+      document.getElementById("remove").hidden = true;
+      summary.textContent = "公开页可以查看这篇。";
+    } else {
+      document.getElementById("remove").hidden = false;
+    }
+  }
+  fetch(apiRoot + "/api/submissions").then(res => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
   }).then(data => {
     const item = (data.items || []).find(row => row.id === id);
-    if (!item) {
-      summary.textContent = "没有找到这条记录。";
-      missing.hidden = false;
-      return;
-    }
-    fill(item);
-    if (!local) {
-      document.getElementById("save").hidden = true;
-      summary.textContent = "公开页可以查看这篇。";
-    }
+    if (!item) throw new Error("missing");
+    showItem(item, true);
   }).catch(() => {
-    summary.textContent = local
-      ? "没有连上本机转发。先运行 python tools/serve.py，再从管理后台双击打开。"
-      : "没有找到这篇公开投稿。";
-    missing.hidden = false;
+    fetch("data/public-submissions.json").then(res => {
+      if (!res.ok) throw new Error(String(res.status));
+      return res.json();
+    }).then(data => {
+      const item = (data.items || []).find(row => row.id === id);
+      if (!item) {
+        summary.textContent = "没有找到这条记录。";
+        missing.hidden = false;
+        return;
+      }
+      showItem(item, false);
+    }).catch(() => {
+      summary.textContent = onLocalHost
+        ? "没有连上本机转发。先运行 python tools/serve.py，再从管理后台双击打开。"
+        : "没有找到这篇公开投稿。";
+      missing.hidden = false;
+    });
   });
 }
 form.addEventListener("submit", async e => {
@@ -92,7 +110,7 @@ form.addEventListener("submit", async e => {
   if (!tag) { summary.textContent = "先填写同人标签。"; return; }
   summary.textContent = "正在保存…";
   try {
-    const res = await fetch("/api/submissions", {
+    const res = await fetch(apiRoot + "/api/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "submitted", author, title, tag, content })
@@ -105,6 +123,23 @@ form.addEventListener("submit", async e => {
     summary.textContent = "已保存。";
   } catch (err) {
     summary.textContent = "没有连上本机转发，这次修改还没保存。";
+  }
+});
+document.getElementById("remove").addEventListener("click", async () => {
+  const title = document.getElementById("title").value.trim() || "这篇";
+  if (!confirm(`把「${title}」放进回收站？`)) return;
+  summary.textContent = "正在删除…";
+  try {
+    const res = await fetch(apiRoot + "/api/submissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "delete" })
+    });
+    const raw = await res.text();
+    if (!res.ok) { summary.textContent = raw || "没有删除。"; return; }
+    location.href = "admin.html?bin=1";
+  } catch (err) {
+    summary.textContent = "没有连上本机转发，这次没有放进回收站。";
   }
 });
 </script>
