@@ -172,6 +172,7 @@
   </div>
 </div>
 <script src="data/corpus.js"></script>
+<script src="data/board.js"></script>
 <script>
 const CATS = [
   ["plot", "情节"],
@@ -777,6 +778,7 @@ document.getElementById("stopModel").addEventListener("click", () => {
 });
 const AUTHOR_KEY = "storygen.author";
 let storyRecordId = "";
+let storyBoardId = "";
 function apiUrl(path) {
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return path;
   return "http://127.0.0.1:8765" + path;
@@ -862,6 +864,7 @@ document.getElementById("sendModel").addEventListener("click", () => {
     return;
   }
   storyRecordId = "";
+  storyBoardId = "";
   askModel(prompt, "正在请求模型…");
 });
 document.getElementById("reviseModel").addEventListener("click", () => {
@@ -895,18 +898,20 @@ async function storeStory(statusName) {
   rememberAuthor();
   status.textContent = statusName === "submitted" ? "正在提交…" : "正在保存…";
   try {
-    const res = await fetch(apiUrl("/api/submissions"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: storyRecordId, status: statusName, author, title, tag, content })
+    const saved = await boardSave({
+      _id: storyBoardId,
+      id: storyRecordId,
+      status: statusName,
+      author,
+      title,
+      tag,
+      content
     });
-    const raw = await res.text();
-    if (!res.ok) { status.textContent = plainError(raw) || "没有保存成功。"; return; }
-    const data = JSON.parse(raw);
-    storyRecordId = data.item && data.item.id || storyRecordId;
+    storyBoardId = saved._id || storyBoardId;
+    storyRecordId = saved.id || storyRecordId;
     status.textContent = statusName === "submitted" ? "已提交。可以在管理后台查看。" : "已保存。";
   } catch (err) {
-    status.textContent = "没有连上本机转发。保存和提交也要先打开 http://127.0.0.1:8765/studio.html";
+    status.textContent = err && err.message ? err.message : "这次没有提交成功。";
   }
 }
 document.getElementById("saveStory").addEventListener("click", () => storeStory("saved"));

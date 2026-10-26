@@ -41,11 +41,10 @@
   </header>
   <div id="list"></div>
 </div>
+<script src="data/board.js"></script>
 <script>
-const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
 const bin = new URLSearchParams(location.search).get("bin") === "1";
-let canManage = onLocalHost;
+let canManage = false;
 document.getElementById(bin ? "tabBin" : "tabList").classList.add("on");
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -99,21 +98,14 @@ document.getElementById("list").addEventListener("click", async e => {
   if (action === "purge" && !confirm(`彻底删除「${name}」？回收站里也不会留下。`)) return;
   btn.disabled = true;
   try {
-    const res = await fetch(apiRoot + "/api/submissions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action })
-    });
-    const raw = await res.text();
-    if (!res.ok) {
-      document.getElementById("summary").textContent = raw || "没有完成。";
-      btn.disabled = false;
-      return;
-    }
+    if (action === "purge") await boardPurge(item);
+    else await boardSave(Object.assign({}, item, action === "delete"
+      ? { status: "deleted", deletedAt: new Date().toISOString() }
+      : { status: "submitted", deletedAt: "" }));
     items = items.filter(rowItem => rowItem.id !== id);
     render();
   } catch (err) {
-    document.getElementById("summary").textContent = "没有连上本机转发。";
+    document.getElementById("summary").textContent = err && err.message ? err.message : "没有完成。";
     btn.disabled = false;
   }
 });
@@ -124,28 +116,13 @@ function applyRows(data) {
 }
 function showOffline() {
   canManage = false;
-  document.getElementById("summary").textContent = bin
-    ? "回收站要连着本机转发。先运行 python tools/serve.py。"
-    : (onLocalHost ? "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html" : "还没有公开的投稿。");
-  document.getElementById("list").innerHTML = `<div class="empty">${bin || onLocalHost ? "管理后台要跟生成面板用同一个地址打开。" : "还没有提交。"}</div>`;
+  document.getElementById("summary").textContent = "投稿列表没有读到。请刷新后再试。";
+  document.getElementById("list").innerHTML = `<div class="empty">还没有提交。</div>`;
 }
-const liveUrl = apiRoot + "/api/submissions" + (bin ? "?status=deleted" : "");
-fetch(liveUrl).then(res => {
-  if (!res.ok) throw new Error(String(res.status));
-  return res.json();
-}).then(data => {
+boardRows().then(rows => {
   canManage = true;
-  applyRows(data);
-}).catch(() => {
-  if (onLocalHost || bin) { showOffline(); return; }
-  fetch("data/public-submissions.json").then(res => {
-    if (!res.ok) throw new Error(String(res.status));
-    return res.json();
-  }).then(data => {
-    canManage = false;
-    applyRows(data);
-  }).catch(showOffline);
-});
+  applyRows(rows);
+}).catch(showOffline);
 </script>
 </body>
 </html>

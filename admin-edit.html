@@ -20,7 +20,14 @@
   textarea { min-height: 420px; line-height: 1.75; resize: vertical; }
   button { margin-top: 14px; height: 36px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; cursor: pointer; }
   button.danger { margin-left: 8px; background: #fff; color: #c44747; border: 1px solid #f0d0d0; }
+  button.quiet { margin-left: 8px; background: #fff; color: #333; border: 1px solid #e6e6e6; }
   .empty { color: var(--muted); padding: 20px; background: var(--card); border-radius: 16px; }
+  .ai { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .ai h2 { margin: 0; font-size: 16px; }
+  .model-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .model-grid button { margin: 0; height: auto; min-height: 28px; padding: 6px 10px; border: 1px solid #e6e6e6; border-radius: 10px; background: #fff; color: #222; }
+  .model-grid button.on { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  #revisePrompt { min-height: 88px; }
 </style>
 </head>
 <body>
@@ -37,15 +44,28 @@
     <label>标题<input id="title" maxlength="80"></label>
     <label>同人标签<input id="tag" maxlength="80"></label>
     <label>正文<textarea id="content"></textarea></label>
+    <div class="ai" id="aiPanel">
+      <h2>AI 修改</h2>
+      <p class="desc" id="modelMeta">模型和密钥沿用生成页。</p>
+      <div class="model-grid" id="modelGrid"></div>
+      <label>修改提示词<textarea id="revisePrompt" placeholder="自己写下要怎么改"></textarea></label>
+      <div>
+        <button type="button" id="reviseModel">按提示词修改</button>
+        <button type="button" class="quiet" id="stopModel">停止</button>
+      </div>
+      <p class="desc" id="modelStatus"></p>
+    </div>
     <button type="submit" id="save">保存</button>
     <button type="button" class="danger" id="remove" hidden>删除</button>
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
+<script src="data/board.js"></script>
 <script>
 const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
 const id = new URLSearchParams(location.search).get("id") || "";
+let record = null;
 const summary = document.getElementById("summary");
 const form = document.getElementById("editor");
 const missing = document.getElementById("missing");
@@ -63,7 +83,9 @@ if (!id) {
   missing.hidden = false;
 } else {
   function showItem(item, manage) {
+    record = item;
     fill(item);
+    document.getElementById("aiPanel").hidden = !manage;
     if (!manage) {
       document.getElementById("save").hidden = true;
       document.getElementById("remove").hidden = true;
@@ -72,11 +94,8 @@ if (!id) {
       document.getElementById("remove").hidden = false;
     }
   }
-  fetch(apiRoot + "/api/submissions").then(res => {
-    if (!res.ok) throw new Error(String(res.status));
-    return res.json();
-  }).then(data => {
-    const item = (data.items || []).find(row => row.id === id);
+  boardRows().then(rows => {
+    const item = rows.find(row => row.id === id || row._id === id);
     if (!item) throw new Error("missing");
     showItem(item, true);
   }).catch(() => {
@@ -92,9 +111,7 @@ if (!id) {
       }
       showItem(item, false);
     }).catch(() => {
-      summary.textContent = onLocalHost
-        ? "没有连上本机转发。先运行 python tools/serve.py，再从管理后台双击打开。"
-        : "没有找到这篇公开投稿。";
+      summary.textContent = "没有找到这篇投稿。";
       missing.hidden = false;
     });
   });
@@ -110,36 +127,161 @@ form.addEventListener("submit", async e => {
   if (!tag) { summary.textContent = "先填写同人标签。"; return; }
   summary.textContent = "正在保存…";
   try {
-    const res = await fetch(apiRoot + "/api/submissions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: "submitted", author, title, tag, content })
+    const saved = await boardSave({
+      _id: record && record._id,
+      id: record && record.id || id,
+      status: "submitted",
+      author,
+      title,
+      tag,
+      content,
+      createdAt: record && record.createdAt,
+      deletedAt: ""
     });
-    const raw = await res.text();
-    if (!res.ok) {
-      summary.textContent = /<\s*html|405 Not Allowed/i.test(raw) ? "这次修改还没保存。请打开 http://127.0.0.1:8765/admin.html" : (raw || "没有保存成功。");
-      return;
-    }
+    record = saved;
     summary.textContent = "已保存。";
   } catch (err) {
-    summary.textContent = "没有连上本机转发，这次修改还没保存。";
+    summary.textContent = err && err.message ? err.message : "这次修改还没保存。";
   }
 });
+const MODEL_KEY = "storygen.model";
+const ARK = "https://ark.cn-beijing.volces.com/api/v3";
+const MODELS = [
+  { id: "deepseek-v4-1-flash-261017", name: "DeepSeek V4 Flash", vendor: "DeepSeek", base: ARK },
+  { id: "deepseek-v4-pro-ga-260813", name: "DeepSeek V4 Pro", vendor: "DeepSeek", base: ARK },
+  { id: "doubao-seed-2-0-pro-260215", name: "豆包 Seed 2.0 Pro", vendor: "豆包", base: ARK },
+  { id: "doubao-seed-2-1-pro-260915", name: "豆包 Seed 2.1 Pro", vendor: "豆包", base: ARK },
+  { id: "kimi-k3-1-pro-261024", name: "Kimi K3.1 Pro", vendor: "Kimi", base: ARK },
+  { id: "glm-5-2-260617", name: "智谱 GLM-5.2", vendor: "智谱", base: ARK }
+];
+let modelId = MODELS[0].id;
+let modelAbort = null;
+let modelReq = 0;
+function savedModel() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(MODEL_KEY) || "{}"); } catch (err) { saved = {}; }
+  const raw = String(saved.arkKey || saved.key || "").trim();
+  const found = raw.match(/ark-[0-9a-fA-F]+(?:-[0-9a-fA-F]+)+/);
+  return {
+    key: found ? found[0] : "",
+    modelId: MODELS.some(item => item.id === saved.modelId) ? saved.modelId : MODELS[0].id
+  };
+}
+function currentModel() {
+  return MODELS.find(item => item.id === modelId) || MODELS[0];
+}
+function renderModels() {
+  const saved = savedModel();
+  modelId = saved.modelId;
+  const current = currentModel();
+  document.getElementById("modelGrid").innerHTML = MODELS.map(item =>
+    `<button type="button" data-model="${item.id}" class="${item.id === current.id ? "on" : ""}">${item.name}</button>`
+  ).join("");
+  document.getElementById("modelMeta").textContent = saved.key
+    ? `使用生成页保存的方舟密钥 · ${current.name}`
+    : "这台浏览器还没有生成页保存的方舟密钥。";
+}
+function rememberModel(nextId) {
+  const saved = savedModel();
+  modelId = nextId;
+  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId, arkKey: saved.key }));
+  renderModels();
+}
+function modelErrorText(detail, pickedId) {
+  const raw = String(detail || "");
+  let message = raw;
+  const start = raw.indexOf("{");
+  if (start >= 0) {
+    try {
+      const err = JSON.parse(raw.slice(start)).error || {};
+      message = err.message || err.code || raw;
+    } catch (err) {}
+  }
+  if (/<\s*html|405 Not Allowed/i.test(raw)) return "没有连上本机转发。先运行 python tools/serve.py。";
+  if (/\b401\b|AuthenticationError|authentication fails/i.test(raw)) return "方舟拒绝了生成页保存的密钥，或当前账号没有开通 " + pickedId + "。";
+  if (/not activated|does not exist|not found|未开通|没有开通|AccessDenied|InvalidEndpoint/i.test(raw)) return "当前账号还不能调用 " + pickedId + "。到火山方舟控制台开通后再试。";
+  return message || "模型请求失败";
+}
+document.getElementById("modelGrid").addEventListener("click", e => {
+  const btn = e.target.closest("[data-model]");
+  if (!btn) return;
+  rememberModel(btn.dataset.model);
+});
+document.getElementById("stopModel").addEventListener("click", () => {
+  modelReq += 1;
+  if (modelAbort) modelAbort.abort();
+  document.getElementById("modelStatus").textContent = "已停止。";
+});
+document.getElementById("reviseModel").addEventListener("click", async () => {
+  const status = document.getElementById("modelStatus");
+  const out = document.getElementById("content");
+  const note = document.getElementById("revisePrompt").value.trim();
+  const current = out.value.trim();
+  const saved = savedModel();
+  const picked = currentModel();
+  if (!current) { status.textContent = "正文是空的。"; return; }
+  if (!note) { status.textContent = "先写下修改提示词。"; return; }
+  if (!saved.key) { status.textContent = "这台浏览器还没有生成页保存的方舟密钥。"; return; }
+  const reqId = ++modelReq;
+  if (modelAbort) modelAbort.abort();
+  const controller = new AbortController();
+  modelAbort = controller;
+  status.textContent = "正在按提示词修改…";
+  const previous = out.value;
+  try {
+    const res = await fetch(apiRoot + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: picked.base,
+        apiKey: saved.key,
+        model: picked.id,
+        prompt: ["下面是一篇已经写好的全文。按修改要求改一版，直接给出改后的全文。", "不要加说明。", "", "修改要求：", note, "", "原文：", current].join("\n")
+      }),
+      signal: controller.signal
+    });
+    if (reqId !== modelReq) return;
+    if (!res.ok) {
+      status.textContent = modelErrorText(await res.text(), picked.id);
+      return;
+    }
+    status.textContent = "已接通，正在改…";
+    out.value = "";
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = "";
+    while (true) {
+      const step = await reader.read();
+      if (reqId !== modelReq) return;
+      if (step.done) break;
+      acc += dec.decode(step.value, { stream: true });
+      out.value = acc;
+    }
+    if (!acc) out.value = previous;
+    status.textContent = acc ? "已改完。看过正文后可以保存。" : "模型没有返回正文。";
+  } catch (err) {
+    if (reqId !== modelReq) return;
+    if (!out.value) out.value = previous;
+    status.textContent = err.name === "AbortError" ? "已停止。" : "没有连上本机转发。先运行 python tools/serve.py。";
+  }
+});
+renderModels();
 document.getElementById("remove").addEventListener("click", async () => {
   const title = document.getElementById("title").value.trim() || "这篇";
   if (!confirm(`把「${title}」放进回收站？`)) return;
   summary.textContent = "正在删除…";
   try {
-    const res = await fetch(apiRoot + "/api/submissions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action: "delete" })
-    });
-    const raw = await res.text();
-    if (!res.ok) { summary.textContent = raw || "没有删除。"; return; }
+    await boardSave(Object.assign({}, record, {
+      status: "deleted",
+      deletedAt: new Date().toISOString(),
+      author: document.getElementById("author").value.trim(),
+      title,
+      tag: document.getElementById("tag").value.trim(),
+      content: document.getElementById("content").value
+    }));
     location.href = "admin.html?bin=1";
   } catch (err) {
-    summary.textContent = "没有连上本机转发，这次没有放进回收站。";
+    summary.textContent = err && err.message ? err.message : "这次没有放进回收站。";
   }
 });
 </script>
