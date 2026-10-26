@@ -41,7 +41,7 @@
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
 <script>
-const root = (location.hostname === "127.0.0.1" || location.hostname === "localhost") ? "" : "http://127.0.0.1:8765";
+const local = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 const id = new URLSearchParams(location.search).get("id") || "";
 const summary = document.getElementById("summary");
 const form = document.getElementById("editor");
@@ -59,7 +59,7 @@ if (!id) {
   summary.textContent = "没有指定记录。";
   missing.hidden = false;
 } else {
-  fetch(root + "/api/submissions").then(res => {
+  fetch(local ? "/api/submissions" : "data/public-submissions.json").then(res => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
   }).then(data => {
@@ -70,8 +70,14 @@ if (!id) {
       return;
     }
     fill(item);
+    if (!local) {
+      document.getElementById("save").hidden = true;
+      summary.textContent = "公开页可以查看这篇。";
+    }
   }).catch(() => {
-    summary.textContent = "没有连上本机转发。先运行 python tools/serve.py，再从管理后台双击打开。";
+    summary.textContent = local
+      ? "没有连上本机转发。先运行 python tools/serve.py，再从管理后台双击打开。"
+      : "没有找到这篇公开投稿。";
     missing.hidden = false;
   });
 }
@@ -86,7 +92,7 @@ form.addEventListener("submit", async e => {
   if (!tag) { summary.textContent = "先填写同人标签。"; return; }
   summary.textContent = "正在保存…";
   try {
-    const res = await fetch(root + "/api/submissions", {
+    const res = await fetch("/api/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: "submitted", author, title, tag, content })

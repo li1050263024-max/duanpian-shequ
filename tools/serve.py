@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HOST = "127.0.0.1"
 PORT = 8765
 STORE = ROOT / "data" / "submissions.json"
+PUBLIC = ROOT / "data" / "public-submissions.json"
 STORE_LOCK = threading.Lock()
 
 
@@ -103,6 +104,8 @@ def load_submissions():
 def write_submissions(items):
     STORE.parent.mkdir(parents=True, exist_ok=True)
     STORE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    published = [item for item in items if isinstance(item, dict) and item.get("status") == "submitted"]
+    PUBLIC.write_text(json.dumps({"items": published}, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def clip(value, limit):

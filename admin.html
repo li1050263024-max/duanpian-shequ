@@ -36,7 +36,7 @@
   <div id="list"></div>
 </div>
 <script>
-const root = (location.hostname === "127.0.0.1" || location.hostname === "localhost") ? "" : "http://127.0.0.1:8765";
+const local = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -60,16 +60,21 @@ document.getElementById("list").addEventListener("dblclick", e => {
   if (!row) return;
   location.href = "admin-edit.html?id=" + encodeURIComponent(row.dataset.id);
 });
-fetch(root + "/api/submissions").then(res => {
+fetch(local ? "/api/submissions" : "data/public-submissions.json").then(res => {
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
 }).then(data => {
-  items = data.items || [];
-  document.getElementById("summary").textContent = items.length ? `已提交 ${items.length} 篇。双击一条记录，进入单独页面改正文。` : "还没有人提交。";
+  const rows = Array.isArray(data) ? data : (data.items || []);
+  items = rows.filter(item => !item.status || item.status === "submitted");
+  document.getElementById("summary").textContent = items.length
+    ? (local ? `已提交 ${items.length} 篇。双击一条记录，进入单独页面改正文。` : `已提交 ${items.length} 篇。双击可以查看正文。`)
+    : "还没有人提交。";
   render();
 }).catch(() => {
-  document.getElementById("summary").textContent = "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html";
-  document.getElementById("list").innerHTML = `<div class="empty">管理后台要跟生成面板用同一个地址打开。</div>`;
+  document.getElementById("summary").textContent = local
+    ? "没有连上本机转发。先运行 python tools/serve.py，再打开 http://127.0.0.1:8765/admin.html"
+    : "还没有公开的投稿。";
+  document.getElementById("list").innerHTML = `<div class="empty">${local ? "管理后台要跟生成面板用同一个地址打开。" : "还没有提交。"}</div>`;
 });
 </script>
 </body>
