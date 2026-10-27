@@ -93,8 +93,11 @@
   .beat-label { margin: 10px 0 0; color: #666; font-size: 12px; }
   .beat-label b { color: #222; margin-right: 6px; }
   .prompt.beat { width: 100%; height: 84px; min-height: 72px; margin: 4px 0 0; }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 14px 10px; }
   .actions .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .submit-status { font-size: 13px; line-height: 1.4; color: #666; }
+  .submit-status.ok { color: #137333; }
+  .submit-status.bad { color: #c44747; }
   .draft { margin: 0 14px 16px; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; }
   .draft h3 { margin: 0 0 6px; font-size: 16px; }
   .draft .tagline { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
@@ -166,13 +169,14 @@
         <div class="actions">
           <button type="button" id="saveStory">保存</button>
           <button type="button" class="primary" id="submitStory">提交</button>
+          <span id="submitStatus" class="submit-status" role="status"></span>
         </div>
       </form>
     </section>
   </div>
 </div>
 <script src="data/corpus.js"></script>
-<script src="data/board.js"></script>
+<script src="data/board.js?v=5"></script>
 <script>
 const CATS = [
   ["plot", "情节"],
@@ -271,7 +275,12 @@ function endingLine() {
   return "关系有明确的靠近。结尾落在一个具体动作上，不用宣誓式告白收束。";
 }
 function isYouPov() {
-  return state.pov === "第三人称" || state.pov === "第二人称";
+  return state.pov === "第二人称" || state.pov === "第三人称";
+}
+function povLine() {
+  if (state.pov === "第二人称") return "人称：第二人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。";
+  if (state.pov === "第三人称") return "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。";
+  return "人称：第一人称。用「我」作叙述者。对方只叫" + state.lead + "。";
 }
 function beatDraft(s) {
   const blank = { qi: "", cheng: "", zhuan: "", he: "" };
@@ -358,9 +367,7 @@ function buildUserPrompt(s) {
   const beats = beatDraft(s);
   const focus = (document.getElementById("beatFocus")?.value || "").trim();
   const lines = [
-    isYouPov()
-      ? "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。"
-      : "人称：第一人称。用「我」作叙述者。对方只叫" + state.lead + "。",
+    povLine(),
     "篇幅：大约 " + state.words + " 字。",
     "结局：" + state.ending + "。" + endingLine(),
     "口气：" + tone,
@@ -383,9 +390,7 @@ function collectUserPrompt() {
     he: document.getElementById("beatHe")?.value.trim() || ""
   };
   const focus = document.getElementById("beatFocus")?.value.trim() || "";
-  const whoLine = isYouPov()
-    ? "人称：第三人称。叙述者是「你」。对方只叫" + state.lead + "。全文用「你」来写。"
-    : "人称：第一人称。用「我」作叙述者。对方只叫" + state.lead + "。";
+  const whoLine = povLine();
   const tone = state.tone === "PGC"
     ? "句子收干净，少用网络口头禅。段落仍然要短。"
     : "可以有口语、撒娇和没说完的半句。";
@@ -551,7 +556,7 @@ function renderStudio() {
       <div class="controls">
         <label>字数<select id="words">${[1500, 2500, 4000].map(n => `<option ${n === state.words ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>结局<select id="ending">${["HE", "开放", "BE"].map(n => `<option ${n === state.ending ? "selected" : ""}>${n}</option>`).join("")}</select></label>
-        <label>人称<select id="pov">${["第一人称", "第三人称"].map(n => `<option ${n === (isYouPov() ? "第三人称" : "第一人称") ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label>人称<select id="pov">${["第一人称", "第二人称", "第三人称"].map(n => `<option ${n === state.pov ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>文风<select id="tone">${["UGC", "PGC"].map(n => `<option ${n === state.tone ? "selected" : ""}>${n}</option>`).join("")}</select></label>
         <label>角色名<input id="lead" value="${esc(state.lead)}" maxlength="8"></label>
       </div>
@@ -606,7 +611,8 @@ function selectStory(id, keepTemplate) {
   const modelStatus = document.getElementById("modelStatus");
   if (modelStatus) modelStatus.textContent = "";
   state.ending = s.ending === "BE" ? "BE" : "HE";
-  state.pov = (s.tags.craft || []).some(tag => tag === "第二人称" || tag === "第三人称") ? "第三人称" : "第一人称";
+  const craft = s.tags.craft || [];
+  state.pov = craft.includes("第二人称") ? "第二人称" : craft.includes("第三人称") ? "第三人称" : "第一人称";
   if (!keepTemplate && !state.manualTemplate) state.template = pickTemplate(s);
   if (state.template === "short") state.words = 1500;
   render();
@@ -885,18 +891,27 @@ document.getElementById("reviseModel").addEventListener("click", () => {
   ].join("\n");
   askModel(prompt, "正在按修改要求重写…");
 });
+function setSubmitStatus(text, kind) {
+  const status = document.getElementById("submitStatus");
+  status.textContent = text;
+  status.className = "submit-status" + (kind ? " " + kind : "");
+}
 async function storeStory(statusName) {
-  const status = document.getElementById("modelStatus");
   const content = document.getElementById("modelOut").value.trim();
   const author = document.getElementById("authorName").value.trim();
   const title = document.getElementById("storyTitle").value.trim() || firstLine(content);
   const tag = document.getElementById("storyTag").value.trim();
-  if (!content) { status.textContent = "正文是空的。"; return; }
-  if (statusName === "submitted" && !author) { status.textContent = "先填写提交人。"; return; }
-  if (statusName === "submitted" && !tag) { status.textContent = "先填写同人标签，写明是哪个 IP 或人。"; return; }
+  const submitting = statusName === "submitted";
+  if (!content) { setSubmitStatus("正文是空的。", "bad"); return; }
+  if (submitting && !author) { setSubmitStatus("先填写提交人。", "bad"); return; }
+  if (submitting && !tag) { setSubmitStatus("先填写同人标签。", "bad"); return; }
   document.getElementById("storyTitle").value = title;
   rememberAuthor();
-  status.textContent = statusName === "submitted" ? "正在提交…" : "正在保存…";
+  const saveBtn = document.getElementById("saveStory");
+  const submitBtn = document.getElementById("submitStory");
+  saveBtn.disabled = true;
+  submitBtn.disabled = true;
+  setSubmitStatus(submitting ? "正在提交…" : "正在保存…", "");
   try {
     const saved = await boardSave({
       _id: storyBoardId,
@@ -909,9 +924,12 @@ async function storeStory(statusName) {
     });
     storyBoardId = saved._id || storyBoardId;
     storyRecordId = saved.id || storyRecordId;
-    status.textContent = statusName === "submitted" ? "已提交。可以在管理后台查看。" : "已保存。";
+    setSubmitStatus(submitting ? "已提交" : "已保存", "ok");
   } catch (err) {
-    status.textContent = err && err.message ? err.message : "这次没有提交成功。";
+    setSubmitStatus(submitting ? "提交失败" : "保存失败", "bad");
+  } finally {
+    saveBtn.disabled = false;
+    submitBtn.disabled = false;
   }
 }
 document.getElementById("saveStory").addEventListener("click", () => storeStory("saved"));

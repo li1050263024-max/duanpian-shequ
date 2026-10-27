@@ -24,25 +24,45 @@ function boardBody(item) {
   };
 }
 
+async function boardFetch(url, options) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || (res.status !== 429 && res.status < 500)) return res;
+      last = res;
+    } catch (err) {
+      last = null;
+    }
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+  }
+  return last;
+}
+
 async function boardSave(item) {
   const body = boardBody(item);
   const headers = { "Content-Type": "application/json" };
+  const payload = JSON.stringify(body);
   if (item._id) {
-    const res = await fetch(STORY_BOARD + "/" + item._id, {
+    const res = await boardFetch(STORY_BOARD + "/" + item._id, {
       method: "PUT",
       headers,
-      body: JSON.stringify(body)
+      body: payload
     });
-    if (!res.ok) throw new Error("这次没有保存成功。");
-    return Object.assign({ _id: item._id }, body);
+    if (res && res.ok) return Object.assign({ _id: item._id }, body);
   }
-  const res = await fetch(STORY_BOARD, {
+  const res = await boardFetch(STORY_BOARD, {
     method: "POST",
     headers,
-    body: JSON.stringify(body)
+    body: payload
   });
-  if (!res.ok) throw new Error("这次没有保存成功。");
-  return res.json();
+  if (!res || !res.ok) throw new Error("这次没有保存成功。");
+  const text = await res.text();
+  try {
+    const saved = JSON.parse(text);
+    if (saved && saved._id) return saved;
+  } catch (err) {}
+  return Object.assign({ _id: "" }, body);
 }
 
 async function boardPurge(item) {
