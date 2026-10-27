@@ -42,7 +42,7 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=9"></script>
+<script src="data/board.js?v=10"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -56,7 +56,7 @@ function when(value) {
 }
 let items = [];
 function summaryText() {
-  const fresh = boardSource === "live" ? "刚刚从本机稿库刷新。" : boardSource === "remote" ? "本机服务没开，显示的是网上刚收到的投稿。" : boardSource === "backup" ? "这是已保存的文件。" : "";
+  const fresh = boardSource === "repo" ? "稿在仓库里，不会自动抄进本机。" : "";
   if (!items.length) return (bin ? "回收站是空的。" : "还没有人提交。") + (fresh ? " " + fresh : "");
   if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。${fresh ? " " + fresh : ""}`;
   if (canManage) return `已提交 ${items.length} 篇。双击改正文，删除后进入回收站。${fresh ? " " + fresh : ""}`;

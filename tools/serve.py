@@ -4,7 +4,6 @@ import json
 import os
 import re
 import threading
-import time
 import uuid
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -20,7 +19,6 @@ STORE = ROOT / "data" / "submissions.json"
 ARCHIVE = ROOT / "data" / "我的全部稿件.json"
 SNAPSHOT = ROOT / "data" / "board-snapshot.json"
 PUBLIC = ROOT / "data" / "public-submissions.json"
-REMOTE_BOARD = "https://dontlosedata.site/api/v1/301c06c6-a512-49d3-b85b-1a905840fa84"
 STORE_LOCK = threading.Lock()
 
 
@@ -111,80 +109,30 @@ def load_submissions():
     return load_list(STORE)
 
 
-def item_key(item):
-    return str(item.get("id") or item.get("_id") or "")
-
-
-def newer(item, current):
-    left = str(item.get("updatedAt") or item.get("createdAt") or "")
-    right = str(current.get("updatedAt") or current.get("createdAt") or "")
-    return left >= right
-
-
-def merge_lists(*groups):
-    merged = {}
-    order = []
-    for group in groups:
-        for item in group:
-            key = item_key(item)
-            if not key:
-                continue
-            if key not in merged:
-                order.append(key)
-                merged[key] = item
-            elif newer(item, merged[key]):
-                merged[key] = item
-    return [merged[key] for key in order]
-
-
-def write_submissions(items):
+def write_personal(items):
     STORE.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(items, ensure_ascii=False, indent=2) + "\n"
+    STORE.write_text(text, encoding="utf-8")
+    ARCHIVE.write_text(text, encoding="utf-8")
+
+
+def load_board():
+    return load_list(SNAPSHOT)
+
+
+def write_board(items):
+    SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(items, ensure_ascii=False, indent=2) + "\n"
     published = [item for item in items if item.get("status") == "submitted"]
-    public_text = json.dumps(published, ensure_ascii=False, indent=2) + "\n"
-    for path, body in ((STORE, text), (ARCHIVE, text), (SNAPSHOT, text), (PUBLIC, public_text)):
-        path.write_text(body, encoding="utf-8")
-
-
-def ensure_store():
-    items = merge_lists(load_list(STORE), load_list(ARCHIVE), load_list(SNAPSHOT), load_list(PUBLIC))
-    if items:
-        write_submissions(items)
-
-
-def pull_remote():
-    try:
-        req = Request(REMOTE_BOARD, headers={"Accept": "application/json"})
-        with urlopen(req, timeout=20) as res:
-            data = json.loads(res.read().decode("utf-8"))
-    except (OSError, ValueError, json.JSONDecodeError):
-        return False
-    if isinstance(data, dict):
-        data = data.get("items") or []
-    if not isinstance(data, list):
-        return False
-    remote = [item for item in data if isinstance(item, dict) and item_key(item)]
-    if not remote:
-        return False
-    with STORE_LOCK:
-        current = load_submissions()
-        merged = merge_lists(current, remote)
-        if json.dumps(merged, ensure_ascii=False) != json.dumps(current, ensure_ascii=False):
-            write_submissions(merged)
-    return True
-
-
-def remote_loop():
-    while True:
-        pull_remote()
-        time.sleep(120)
+    SNAPSHOT.write_text(text, encoding="utf-8")
+    PUBLIC.write_text(json.dumps(published, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def clip(value, limit):
     return str(value or "").strip()[:limit]
 
 
-def upsert_submission(body):
+def upsert_submission(body, load=load_submissions, write=write_personal):
     status = str(body.get("status") or "saved")
     if status not in ("submitted", "saved", "deleted"):
         status = "saved"
@@ -201,7 +149,7 @@ def upsert_submission(body):
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     incoming_id = clip(body.get("id") or body.get("_id"), 40)
     with STORE_LOCK:
-        items = load_submissions()
+        items = load()
         found = None
         for item in items:
             if incoming_id and incoming_id in (str(item.get("id") or ""), str(item.get("_id") or "")):
@@ -221,18 +169,18 @@ def upsert_submission(body):
             "updatedAt": now,
             "deletedAt": (body.get("deletedAt") or now) if status == "deleted" else "",
         })
-        write_submissions(items)
+        write(items)
         return dict(found), ""
 
 
-def change_submission(body):
+def change_submission(body, load=load_submissions, write=write_personal):
     action = str(body.get("action") or "")
     incoming_id = clip(body.get("id"), 40)
     if action not in ("delete", "restore", "purge") or not incoming_id:
         return None, "没有这条记录"
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
     with STORE_LOCK:
-        items = load_submissions()
+        items = load()
         found = None
         for item in items:
             if incoming_id in (str(item.get("id") or ""), str(item.get("_id") or "")):
@@ -245,7 +193,7 @@ def change_submission(body):
                 item for item in items
                 if incoming_id not in (str(item.get("id") or ""), str(item.get("_id") or ""))
             ]
-            write_submissions(kept)
+            write(kept)
             return {"id": incoming_id, "status": "purged"}, ""
         if action == "delete":
             found["status"] = "deleted"
@@ -254,7 +202,7 @@ def change_submission(body):
             found["status"] = "submitted"
             found.pop("deletedAt", None)
         found["updatedAt"] = now
-        write_submissions(items)
+        write(items)
         return dict(found), ""
 
 
@@ -289,7 +237,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/submissions":
-            self._save_submission()
+            self._save_submission(load_submissions, write_personal)
+            return
+        if path == "/api/board":
+            self._save_submission(load_board, write_board)
             return
         if path != "/api/chat":
             self.send_error(404)
@@ -418,7 +369,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.flush()
         return True
 
-    def _save_submission(self):
+    def _save_submission(self, load, write):
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > 500_000:
             self._text(400, "请求体无效")
@@ -429,9 +380,9 @@ class Handler(SimpleHTTPRequestHandler):
             self._text(400, "请求不是 JSON")
             return
         if body.get("action"):
-            item, err = change_submission(body)
+            item, err = change_submission(body, load, write)
         else:
-            item, err = upsert_submission(body)
+            item, err = upsert_submission(body, load, write)
         if err:
             self._text(400, err)
             return
@@ -456,8 +407,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(ROOT)
-    ensure_store()
-    threading.Thread(target=remote_loop, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print("短篇测试生成面板：http://%s:%s/studio.html" % (HOST, PORT))
     try:
