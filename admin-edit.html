@@ -56,11 +56,13 @@
       <p class="desc" id="modelStatus"></p>
     </div>
     <button type="submit" id="save">保存</button>
+    <button type="button" class="quiet" id="download">下载 Word</button>
     <button type="button" class="danger" id="remove" hidden>删除</button>
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
 <script src="data/board.js?v=9"></script>
+<script src="data/docx.js?v=1"></script>
 <script>
 const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
@@ -117,6 +119,16 @@ if (!id) {
     });
   });
 }
+document.getElementById("download").addEventListener("click", () => {
+  const title = document.getElementById("title").value.trim() || "未命名";
+  const filename = title.replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 80) || "投稿";
+  downloadStoriesDocx([{
+    author: document.getElementById("author").value.trim(),
+    title,
+    tag: document.getElementById("tag").value.trim(),
+    content: document.getElementById("content").value
+  }], filename + ".docx");
+});
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const content = document.getElementById("content").value.trim();
