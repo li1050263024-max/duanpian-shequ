@@ -41,7 +41,7 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=5"></script>
+<script src="data/board.js?v=6"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -117,7 +117,7 @@ function applyRows(data) {
 function showOffline() {
   canManage = false;
   document.getElementById("summary").textContent = "投稿列表没有读到。请刷新后再试。";
-  document.getElementById("list").innerHTML = `<div class="empty">还没有提交。</div>`;
+  document.getElementById("list").innerHTML = `<div class="empty">投稿列表没有读到。</div>`;
 }
 boardRows().then(rows => {
   canManage = true;

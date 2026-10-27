@@ -1,0 +1,25 @@
+name: 备份投稿列表
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 拉取最新投稿
+        run: |
+          curl -fsS "https://dontlosedata.site/api/v1/301c06c6-a512-49d3-b85b-1a905840fa84" -o /tmp/board.json
+          python -c "import json; data=json.load(open('/tmp/board.json',encoding='utf-8')); assert isinstance(data, list); json.dump(data, open('data/board-snapshot.json','w',encoding='utf-8'), ensure_ascii=False, indent=2); json.dump([row for row in data if row.get('status')=='submitted'], open('data/public-submissions.json','w',encoding='utf-8'), ensure_ascii=False, indent=2)"
+      - name: 写回仓库
+        run: |
+          git add data/board-snapshot.json data/public-submissions.json
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "备份最新投稿列表。"
+          git push

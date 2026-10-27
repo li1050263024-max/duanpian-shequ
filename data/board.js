@@ -1,32 +1,50 @@
-const STORY_BOARD = "https://crudcrud.com/api/63224c73389c46d184547c139a387a9e/submissions";
+const STORY_BOARD = "https://dontlosedata.site/api/v1/301c06c6-a512-49d3-b85b-1a905840fa84";
 
 async function boardRows() {
-  const res = await fetch(STORY_BOARD, { cache: "no-store" });
-  if (!res.ok) throw new Error("投稿列表没有读到。");
-  const rows = await res.json();
-  return Array.isArray(rows) ? rows : [];
+  try {
+    const res = await fetch(STORY_BOARD, { cache: "no-store" });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows)) return rows;
+      if (rows == null) return [];
+    }
+  } catch (err) {}
+  const backup = await fetch("data/board-snapshot.json", { cache: "no-store" });
+  if (!backup.ok) throw new Error("投稿列表没有读到。");
+  const rows = await backup.json();
+  if (!Array.isArray(rows)) throw new Error("投稿列表没有读到。");
+  return rows;
 }
 
 function boardBody(item) {
   const now = new Date().toISOString();
   let status = "submitted";
   if (item.status === "deleted" || item.status === "saved") status = item.status;
-  return {
-    id: String(item.id || "").slice(0, 40) || Math.random().toString(16).slice(2, 14),
+  const id = String(item.id || item._id || "").slice(0, 40) || Math.random().toString(16).slice(2, 14);
+  let content = String(item.content || "");
+  const pack = () => ({
+    _id: id,
+    id,
     status,
     author: String(item.author || "").slice(0, 40),
     title: String(item.title || "").slice(0, 80) || "未命名",
     tag: String(item.tag || "").slice(0, 80),
-    content: String(item.content || "").slice(0, 100000),
+    content,
     createdAt: item.createdAt || now,
     updatedAt: now,
     deletedAt: item.deletedAt || ""
-  };
+  });
+  let body = pack();
+  while (content.length > 200 && new TextEncoder().encode(JSON.stringify(body)).length > 28000) {
+    content = content.slice(0, Math.floor(content.length * 0.85));
+    body = pack();
+  }
+  return body;
 }
 
 async function boardFetch(url, options) {
   let last;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, options);
       if (res.ok || (res.status !== 429 && res.status < 500)) return res;
@@ -34,39 +52,33 @@ async function boardFetch(url, options) {
     } catch (err) {
       last = null;
     }
-    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+    if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 600));
   }
   return last;
 }
 
 async function boardSave(item) {
-  const body = boardBody(item);
+  const record = boardBody(item);
   const headers = { "Content-Type": "application/json" };
-  const payload = JSON.stringify(body);
-  if (item._id) {
-    const res = await boardFetch(STORY_BOARD + "/" + item._id, {
-      method: "PUT",
-      headers,
-      body: payload
-    });
-    if (res && res.ok) return Object.assign({ _id: item._id }, body);
-  }
-  const res = await boardFetch(STORY_BOARD, {
-    method: "POST",
+  let res = await boardFetch(STORY_BOARD + "/id/" + encodeURIComponent(record.id), {
+    method: "PUT",
     headers,
-    body: payload
+    body: JSON.stringify(record)
   });
+  if (res && res.status === 409) {
+    res = await boardFetch(STORY_BOARD, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(record)
+    });
+  }
   if (!res || !res.ok) throw new Error("这次没有保存成功。");
-  const text = await res.text();
-  try {
-    const saved = JSON.parse(text);
-    if (saved && saved._id) return saved;
-  } catch (err) {}
-  return Object.assign({ _id: "" }, body);
+  return record;
 }
 
 async function boardPurge(item) {
-  if (!item || !item._id) throw new Error("没有这条记录。");
-  const res = await fetch(STORY_BOARD + "/" + item._id, { method: "DELETE" });
-  if (!res.ok) throw new Error("没有彻底删除。");
+  const id = item && (item.id || item._id);
+  if (!id) throw new Error("没有这条记录。");
+  const res = await boardFetch(STORY_BOARD + "/id/" + encodeURIComponent(id), { method: "DELETE" });
+  if (!res || !res.ok) throw new Error("没有彻底删除。");
 }
