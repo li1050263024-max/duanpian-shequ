@@ -34,6 +34,7 @@
       <p class="desc" id="summary">正在读取提交…</p>
     </div>
     <div class="nav">
+      <button type="button" id="download" disabled>下载 Word</button>
       <button type="button" id="refresh">刷新</button>
       <a href="admin.html" id="tabList">投稿</a>
       <a href="admin.html?bin=1" id="tabBin">回收站</a>
@@ -43,6 +44,7 @@
   <div id="list"></div>
 </div>
 <script src="data/board.js?v=9"></script>
+<script src="data/docx.js?v=1"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -64,6 +66,7 @@ function summaryText() {
 }
 function render() {
   const box = document.getElementById("list");
+  document.getElementById("download").disabled = !items.length;
   document.getElementById("summary").textContent = summaryText();
   if (!items.length) {
     box.innerHTML = `<div class="empty">${bin ? "回收站是空的。" : "还没有提交。"}</div>`;
@@ -118,6 +121,7 @@ function applyRows(data) {
 }
 function showOffline() {
   canManage = false;
+  document.getElementById("download").disabled = true;
   document.getElementById("summary").textContent = "投稿列表没有读到。请刷新后再试。";
   document.getElementById("list").innerHTML = `<div class="empty">投稿列表没有读到。</div>`;
 }
@@ -136,6 +140,11 @@ async function loadRows() {
   }
 }
 document.getElementById("refresh").addEventListener("click", loadRows);
+document.getElementById("download").addEventListener("click", () => {
+  if (!items.length) return;
+  const day = new Date().toISOString().slice(0, 10);
+  downloadStoriesDocx(items, (bin ? "回收站-" : "投稿-") + day + ".docx");
+});
 loadRows();
 </script>
 </body>
