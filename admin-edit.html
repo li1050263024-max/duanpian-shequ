@@ -60,7 +60,7 @@
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
-<script src="data/board.js?v=6"></script>
+<script src="data/board.js?v=9"></script>
 <script>
 const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
@@ -103,7 +103,8 @@ if (!id) {
       if (!res.ok) throw new Error(String(res.status));
       return res.json();
     }).then(data => {
-      const item = (data.items || []).find(row => row.id === id);
+      const rows = Array.isArray(data) ? data : (data.items || []);
+      const item = rows.find(row => row.id === id || row._id === id);
       if (!item) {
         summary.textContent = "没有找到这条记录。";
         missing.hidden = false;

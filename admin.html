@@ -34,6 +34,7 @@
       <p class="desc" id="summary">正在读取提交…</p>
     </div>
     <div class="nav">
+      <button type="button" id="refresh">刷新</button>
       <a href="admin.html" id="tabList">投稿</a>
       <a href="admin.html?bin=1" id="tabBin">回收站</a>
       <a href="studio.html">返回生成面板</a>
@@ -41,7 +42,7 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=6"></script>
+<script src="data/board.js?v=9"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -55,10 +56,11 @@ function when(value) {
 }
 let items = [];
 function summaryText() {
-  if (!items.length) return bin ? "回收站是空的。" : "还没有人提交。";
-  if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。`;
-  if (canManage) return `已提交 ${items.length} 篇。双击改正文，删除后进入回收站。`;
-  return `已提交 ${items.length} 篇。双击可以查看正文。`;
+  const fresh = boardSource === "live" ? "刚刚从本机稿库刷新。" : boardSource === "remote" ? "本机服务没开，显示的是网上刚收到的投稿。" : boardSource === "backup" ? "这是已保存的文件。" : "";
+  if (!items.length) return (bin ? "回收站是空的。" : "还没有人提交。") + (fresh ? " " + fresh : "");
+  if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。${fresh ? " " + fresh : ""}`;
+  if (canManage) return `已提交 ${items.length} 篇。双击改正文，删除后进入回收站。${fresh ? " " + fresh : ""}`;
+  return `已提交 ${items.length} 篇。双击可以查看正文。${fresh ? " " + fresh : ""}`;
 }
 function render() {
   const box = document.getElementById("list");
@@ -119,10 +121,22 @@ function showOffline() {
   document.getElementById("summary").textContent = "投稿列表没有读到。请刷新后再试。";
   document.getElementById("list").innerHTML = `<div class="empty">投稿列表没有读到。</div>`;
 }
-boardRows().then(rows => {
-  canManage = true;
-  applyRows(rows);
-}).catch(showOffline);
+async function loadRows() {
+  const button = document.getElementById("refresh");
+  button.disabled = true;
+  document.getElementById("summary").textContent = "正在读取提交…";
+  try {
+    const rows = await boardRows();
+    canManage = true;
+    applyRows(rows);
+  } catch (err) {
+    showOffline();
+  } finally {
+    button.disabled = false;
+  }
+}
+document.getElementById("refresh").addEventListener("click", loadRows);
+loadRows();
 </script>
 </body>
 </html>

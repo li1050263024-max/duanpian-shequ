@@ -4,6 +4,7 @@ import json
 import os
 import re
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -16,7 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 HOST = "127.0.0.1"
 PORT = 8765
 STORE = ROOT / "data" / "submissions.json"
+ARCHIVE = ROOT / "data" / "我的全部稿件.json"
+SNAPSHOT = ROOT / "data" / "board-snapshot.json"
 PUBLIC = ROOT / "data" / "public-submissions.json"
+REMOTE_BOARD = "https://dontlosedata.site/api/v1/301c06c6-a512-49d3-b85b-1a905840fa84"
 STORE_LOCK = threading.Lock()
 
 
@@ -91,21 +95,89 @@ def allowed_target(base_url):
     return True
 
 
-def load_submissions():
-    if not STORE.exists():
+def load_list(path):
+    if not path.exists():
         return []
     try:
-        data = json.loads(STORE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return []
-    return data if isinstance(data, list) else []
+    if isinstance(data, dict):
+        data = data.get("items") or []
+    return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+
+def load_submissions():
+    return load_list(STORE)
+
+
+def item_key(item):
+    return str(item.get("id") or item.get("_id") or "")
+
+
+def newer(item, current):
+    left = str(item.get("updatedAt") or item.get("createdAt") or "")
+    right = str(current.get("updatedAt") or current.get("createdAt") or "")
+    return left >= right
+
+
+def merge_lists(*groups):
+    merged = {}
+    order = []
+    for group in groups:
+        for item in group:
+            key = item_key(item)
+            if not key:
+                continue
+            if key not in merged:
+                order.append(key)
+                merged[key] = item
+            elif newer(item, merged[key]):
+                merged[key] = item
+    return [merged[key] for key in order]
 
 
 def write_submissions(items):
     STORE.parent.mkdir(parents=True, exist_ok=True)
-    STORE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
-    published = [item for item in items if isinstance(item, dict) and item.get("status") == "submitted"]
-    PUBLIC.write_text(json.dumps({"items": published}, ensure_ascii=False, indent=2), encoding="utf-8")
+    text = json.dumps(items, ensure_ascii=False, indent=2) + "\n"
+    published = [item for item in items if item.get("status") == "submitted"]
+    public_text = json.dumps(published, ensure_ascii=False, indent=2) + "\n"
+    for path, body in ((STORE, text), (ARCHIVE, text), (SNAPSHOT, text), (PUBLIC, public_text)):
+        path.write_text(body, encoding="utf-8")
+
+
+def ensure_store():
+    items = merge_lists(load_list(STORE), load_list(ARCHIVE), load_list(SNAPSHOT), load_list(PUBLIC))
+    if items:
+        write_submissions(items)
+
+
+def pull_remote():
+    try:
+        req = Request(REMOTE_BOARD, headers={"Accept": "application/json"})
+        with urlopen(req, timeout=20) as res:
+            data = json.loads(res.read().decode("utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    if isinstance(data, dict):
+        data = data.get("items") or []
+    if not isinstance(data, list):
+        return False
+    remote = [item for item in data if isinstance(item, dict) and item_key(item)]
+    if not remote:
+        return False
+    with STORE_LOCK:
+        current = load_submissions()
+        merged = merge_lists(current, remote)
+        if json.dumps(merged, ensure_ascii=False) != json.dumps(current, ensure_ascii=False):
+            write_submissions(merged)
+    return True
+
+
+def remote_loop():
+    while True:
+        pull_remote()
+        time.sleep(120)
 
 
 def clip(value, limit):
@@ -113,7 +185,9 @@ def clip(value, limit):
 
 
 def upsert_submission(body):
-    status = "submitted" if body.get("status") == "submitted" else "saved"
+    status = str(body.get("status") or "saved")
+    if status not in ("submitted", "saved", "deleted"):
+        status = "saved"
     content = clip(body.get("content"), 100000)
     author = clip(body.get("author"), 40)
     title = clip(body.get("title"), 80) or "未命名"
@@ -125,24 +199,27 @@ def upsert_submission(body):
     if status == "submitted" and not tag:
         return None, "先填写同人标签，写明是哪个 IP 或人"
     now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
-    incoming_id = clip(body.get("id"), 40)
+    incoming_id = clip(body.get("id") or body.get("_id"), 40)
     with STORE_LOCK:
         items = load_submissions()
         found = None
         for item in items:
-            if incoming_id and item.get("id") == incoming_id:
+            if incoming_id and incoming_id in (str(item.get("id") or ""), str(item.get("_id") or "")):
                 found = item
                 break
         if found is None:
-            found = {"id": uuid.uuid4().hex[:12], "createdAt": now}
+            new_id = incoming_id or uuid.uuid4().hex[:12]
+            found = {"id": new_id, "_id": new_id, "createdAt": body.get("createdAt") or now}
             items.insert(0, found)
         found.update({
+            "_id": found.get("_id") or found.get("id"),
             "status": status,
             "author": author,
             "title": title,
             "tag": tag,
             "content": content,
             "updatedAt": now,
+            "deletedAt": (body.get("deletedAt") or now) if status == "deleted" else "",
         })
         write_submissions(items)
         return dict(found), ""
@@ -158,13 +235,16 @@ def change_submission(body):
         items = load_submissions()
         found = None
         for item in items:
-            if item.get("id") == incoming_id:
+            if incoming_id in (str(item.get("id") or ""), str(item.get("_id") or "")):
                 found = item
                 break
         if found is None:
             return None, "没有这条记录"
         if action == "purge":
-            kept = [item for item in items if item.get("id") != incoming_id]
+            kept = [
+                item for item in items
+                if incoming_id not in (str(item.get("id") or ""), str(item.get("_id") or ""))
+            ]
             write_submissions(kept)
             return {"id": incoming_id, "status": "purged"}, ""
         if action == "delete":
@@ -197,11 +277,11 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/submissions":
-            want = (parse_qs(parsed.query).get("status") or ["submitted"])[0]
-            if want not in ("submitted", "deleted"):
-                want = "submitted"
+            want = (parse_qs(parsed.query).get("status") or ["all"])[0]
             with STORE_LOCK:
-                items = [item for item in load_submissions() if item.get("status") == want]
+                items = load_submissions()
+            if want in ("submitted", "saved", "deleted"):
+                items = [item for item in items if item.get("status") == want]
             self._json(200, {"items": items})
             return
         super().do_GET()
@@ -376,6 +456,8 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.chdir(ROOT)
+    ensure_store()
+    threading.Thread(target=remote_loop, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print("短篇测试生成面板：http://%s:%s/studio.html" % (HOST, PORT))
     try:

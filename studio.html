@@ -176,7 +176,7 @@
   </div>
 </div>
 <script src="data/corpus.js"></script>
-<script src="data/board.js?v=6"></script>
+<script src="data/board.js?v=9"></script>
 <script>
 const CATS = [
   ["plot", "情节"],
@@ -926,7 +926,7 @@ async function storeStory(statusName) {
     storyRecordId = saved.id || storyRecordId;
     setSubmitStatus(submitting ? "已提交" : "已保存", "ok");
   } catch (err) {
-    setSubmitStatus(submitting ? "提交失败" : "保存失败", "bad");
+    setSubmitStatus((err && err.message) || (submitting ? "提交失败" : "保存失败"), "bad");
   } finally {
     saveBtn.disabled = false;
     submitBtn.disabled = false;

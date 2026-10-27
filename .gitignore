@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 data/submissions.json
+data/我的全部稿件.json
+data/board-snapshot.json
+data/public-submissions.json
