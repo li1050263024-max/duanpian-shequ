@@ -6,12 +6,32 @@ function localApi(path) {
   return "http://127.0.0.1:8765" + path;
 }
 
+async function readSnapshot(url, signal) {
+  const res = await fetch(url, { cache: "no-store", signal });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows : null;
+}
+
 async function boardRows() {
   boardSource = "";
-  const backup = await fetch("data/board-snapshot.json", { cache: "no-store" });
-  if (!backup.ok) throw new Error("投稿列表没有读到。");
-  const rows = await backup.json();
-  if (!Array.isArray(rows)) throw new Error("投稿列表没有读到。");
+  const local = localApi("data/board-snapshot.json");
+  if (local !== "data/board-snapshot.json") {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1200);
+    try {
+      const rows = await readSnapshot(local, ctrl.signal);
+      if (rows) {
+        boardSource = "local";
+        return rows;
+      }
+    } catch (err) {
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  const rows = await readSnapshot("data/board-snapshot.json");
+  if (!rows) throw new Error("投稿列表没有读到。");
   boardSource = "repo";
   return rows;
 }
