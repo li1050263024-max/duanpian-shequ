@@ -46,8 +46,9 @@
     <label>正文<textarea id="content"></textarea></label>
     <div class="ai" id="aiPanel">
       <h2>AI 修改</h2>
-      <p class="desc" id="modelMeta">模型和密钥沿用生成页。</p>
+      <p class="desc" id="modelMeta">模型和密钥留在这台浏览器。</p>
       <div class="model-grid" id="modelGrid"></div>
+      <label>方舟 API<input id="apiKey" type="password" placeholder="贴上 ark- 密钥，只留在这台浏览器" autocomplete="off"></label>
       <label>修改提示词<textarea id="revisePrompt" placeholder="自己写下要怎么改"></textarea></label>
       <div>
         <button type="button" id="reviseModel">按提示词修改</button>
@@ -61,11 +62,12 @@
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
-<script src="data/board.js?v=11"></script>
+<script src="data/board.js?v=12"></script>
+<script src="data/relay.js?v=1"></script>
 <script src="data/docx.js?v=1"></script>
 <script>
 const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-const apiRoot = onLocalHost ? "" : "http://127.0.0.1:8765";
+const apiRoot = onLocalHost ? "" : PUBLIC_RELAY;
 const id = new URLSearchParams(location.search).get("id") || "";
 let record = null;
 const summary = document.getElementById("summary");
@@ -170,13 +172,18 @@ const MODELS = [
 let modelId = MODELS[0].id;
 let modelAbort = null;
 let modelReq = 0;
+function cleanKey(raw) {
+  const text = String(raw || "").replace(/[\u200b-\u200d\ufeff]/g, "").trim();
+  const found = text.match(/ark-[0-9a-fA-F]+(?:-[0-9a-fA-F]+)+/);
+  if (found) return found[0];
+  return text.replace(/^bearer\s+/i, "").replace(/^["']|["']$/g, "").trim();
+}
 function savedModel() {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(MODEL_KEY) || "{}"); } catch (err) { saved = {}; }
-  const raw = String(saved.arkKey || saved.key || "").trim();
-  const found = raw.match(/ark-[0-9a-fA-F]+(?:-[0-9a-fA-F]+)+/);
+  const key = cleanKey(saved.arkKey || saved.key || "");
   return {
-    key: found ? found[0] : "",
+    key: key.startsWith("ark-") ? key : "",
     modelId: MODELS.some(item => item.id === saved.modelId) ? saved.modelId : MODELS[0].id
   };
 }
@@ -190,14 +197,17 @@ function renderModels() {
   document.getElementById("modelGrid").innerHTML = MODELS.map(item =>
     `<button type="button" data-model="${item.id}" class="${item.id === current.id ? "on" : ""}">${item.name}</button>`
   ).join("");
+  const input = document.getElementById("apiKey");
+  if (input && document.activeElement !== input) input.value = saved.key || "";
   document.getElementById("modelMeta").textContent = saved.key
-    ? `使用生成页保存的方舟密钥 · ${current.name}`
-    : "这台浏览器还没有生成页保存的方舟密钥。";
+    ? `已使用这台浏览器保存的方舟密钥 · ${current.name}`
+    : "把方舟密钥贴在下面。只留在这台浏览器，和生成页共用。";
 }
 function rememberModel(nextId) {
-  const saved = savedModel();
+  const typed = cleanKey(document.getElementById("apiKey").value);
+  const key = typed.startsWith("ark-") ? typed : savedModel().key;
   modelId = nextId;
-  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId, arkKey: saved.key }));
+  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId, arkKey: key }));
   renderModels();
 }
 function modelErrorText(detail, pickedId) {
@@ -210,11 +220,19 @@ function modelErrorText(detail, pickedId) {
       message = err.message || err.code || raw;
     } catch (err) {}
   }
-  if (/<\s*html|405 Not Allowed/i.test(raw)) return "没有连上本机转发。先运行 python tools/serve.py。";
-  if (/\b401\b|AuthenticationError|authentication fails/i.test(raw)) return "方舟拒绝了生成页保存的密钥，或当前账号没有开通 " + pickedId + "。";
+  if (/<\s*html|405 Not Allowed/i.test(raw)) return "生成暂时没有连上，请稍后再试。";
+  if (/\b401\b|AuthenticationError|authentication fails/i.test(raw)) return "方舟拒绝了这把密钥，或当前账号没有开通 " + pickedId + "。";
   if (/not activated|does not exist|not found|未开通|没有开通|AccessDenied|InvalidEndpoint/i.test(raw)) return "当前账号还不能调用 " + pickedId + "。到火山方舟控制台开通后再试。";
   return message || "模型请求失败";
 }
+document.getElementById("apiKey").addEventListener("change", () => {
+  const typed = cleanKey(document.getElementById("apiKey").value);
+  const key = typed.startsWith("ark-") ? typed : savedModel().key;
+  document.getElementById("apiKey").value = key;
+  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId: savedModel().modelId, arkKey: key }));
+  renderModels();
+  if (typed && !typed.startsWith("ark-")) document.getElementById("modelStatus").textContent = "密钥需要是 ark- 开头。";
+});
 document.getElementById("modelGrid").addEventListener("click", e => {
   const btn = e.target.closest("[data-model]");
   if (!btn) return;
@@ -230,11 +248,14 @@ document.getElementById("reviseModel").addEventListener("click", async () => {
   const out = document.getElementById("content");
   const note = document.getElementById("revisePrompt").value.trim();
   const current = out.value.trim();
-  const saved = savedModel();
+  const typed = cleanKey(document.getElementById("apiKey").value);
+  const key = typed.startsWith("ark-") ? typed : savedModel().key;
   const picked = currentModel();
   if (!current) { status.textContent = "正文是空的。"; return; }
   if (!note) { status.textContent = "先写下修改提示词。"; return; }
-  if (!saved.key) { status.textContent = "这台浏览器还没有生成页保存的方舟密钥。"; return; }
+  if (!key) { status.textContent = "先贴上方舟密钥。"; return; }
+  document.getElementById("apiKey").value = key;
+  localStorage.setItem(MODEL_KEY, JSON.stringify({ modelId: picked.id, arkKey: key }));
   const reqId = ++modelReq;
   if (modelAbort) modelAbort.abort();
   const controller = new AbortController();
@@ -247,7 +268,7 @@ document.getElementById("reviseModel").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         baseUrl: picked.base,
-        apiKey: saved.key,
+        apiKey: key,
         model: picked.id,
         prompt: ["下面是一篇已经写好的全文。按修改要求改一版，直接给出改后的全文。", "不要加说明。", "", "修改要求：", note, "", "原文：", current].join("\n")
       }),
@@ -275,7 +296,7 @@ document.getElementById("reviseModel").addEventListener("click", async () => {
   } catch (err) {
     if (reqId !== modelReq) return;
     if (!out.value) out.value = previous;
-    status.textContent = err.name === "AbortError" ? "已停止。" : "没有连上本机转发。先运行 python tools/serve.py。";
+    status.textContent = err.name === "AbortError" ? "已停止。" : "生成暂时没有连上，请稍后再试。";
   }
 });
 renderModels();

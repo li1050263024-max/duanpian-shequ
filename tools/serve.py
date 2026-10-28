@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import sys
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -309,7 +310,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if err.code == 400 and system_role and system and "role" in low:
                     system_role = False
                     continue
-                self._text(502, "模型接口返回 %s。%s" % (err.code, detail[:500]))
+                code = err.code if 400 <= err.code < 500 else 502
+                self._text(code, "模型接口返回 %s。%s" % (err.code, detail[:500]))
                 return
             except URLError as err:
                 self._text(502, "连不上模型接口：%s" % err.reason)
@@ -318,7 +320,8 @@ class Handler(SimpleHTTPRequestHandler):
                 self._text(502, "转发失败：%s" % err)
                 return
         if upstream is None:
-            self._text(502, "模型接口返回 %s。%s" % (last_code, last_detail[:500]))
+            code = last_code if 400 <= last_code < 500 else 502
+            self._text(code, "模型接口返回 %s。%s" % (last_code, last_detail[:500]))
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -405,10 +408,26 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(raw)
 
 
+class ChatHandler(Handler):
+    def do_GET(self):
+        self.send_error(404)
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0] != "/api/chat":
+            self.send_error(404)
+            return
+        super().do_POST()
+
+
 if __name__ == "__main__":
     os.chdir(ROOT)
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("短篇测试生成面板：http://%s:%s/studio.html" % (HOST, PORT))
+    chat_only = "--chat-only" in sys.argv
+    port = 8766 if chat_only else PORT
+    server = ThreadingHTTPServer((HOST, port), ChatHandler if chat_only else Handler)
+    if chat_only:
+        print("生成转发：http://%s:%s/api/chat" % (HOST, port), flush=True)
+    else:
+        print("短篇测试生成面板：http://%s:%s/studio.html" % (HOST, port), flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

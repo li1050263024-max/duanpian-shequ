@@ -93,6 +93,9 @@
   .beat-label { margin: 10px 0 0; color: #666; font-size: 12px; }
   .beat-label b { color: #222; margin-right: 6px; }
   .prompt.beat { width: 100%; height: 84px; min-height: 72px; margin: 4px 0 0; }
+  .focus-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .focus-row select { flex: 1; min-width: 0; height: 32px; border: 1px solid #e6e6e6; border-radius: 10px; background: #fbfbfc; padding: 0 8px; font-size: 12px; }
+  .focus-row button { border: 1px solid #e6e6e6; background: #fff; border-radius: 999px; height: 32px; padding: 0 12px; font-size: 12px; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 14px 10px; }
   .actions .primary { background: var(--blue); color: #fff; border-color: var(--blue); }
   .submit-status { font-size: 13px; line-height: 1.4; color: #666; }
@@ -176,7 +179,8 @@
   </div>
 </div>
 <script src="data/corpus.js"></script>
-<script src="data/board.js?v=11"></script>
+<script src="data/board.js?v=12"></script>
+<script src="data/relay.js?v=1"></script>
 <script>
 const CATS = [
   ["plot", "情节"],
@@ -227,6 +231,7 @@ const state = {
   off: new Set(),
   dirtySystem: false,
   dirtyUser: false,
+  focusId: "",
   seed: 1,
   draft: null
 };
@@ -534,6 +539,22 @@ function renderDetail() {
     </div>
   `;
 }
+const FOCUS_KEY = "storygen.focus";
+function loadFocusList() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(FOCUS_KEY) || "[]");
+    return Array.isArray(rows) ? rows.filter(row => row && String(row.text || "").trim()) : [];
+  } catch (err) {
+    return [];
+  }
+}
+function writeFocusList(rows) {
+  localStorage.setItem(FOCUS_KEY, JSON.stringify(rows.slice(0, 40)));
+}
+function focusLabel(text) {
+  const line = String(text || "").replace(/\s+/g, " ").trim();
+  return line.length > 28 ? line.slice(0, 28) + "…" : line;
+}
 function renderStudio() {
   const s = story();
   const keptSystem = state.dirtySystem ? document.getElementById("systemPrompt")?.value : "";
@@ -547,7 +568,8 @@ function renderStudio() {
   } : null;
   const tpl = TEMPLATES.find(t => t.id === state.template) || TEMPLATES[0];
   const system = buildSystem();
-  const beats = keptBeats || (s ? beatDraft(s) : { qi: "", cheng: "", zhuan: "", he: "" });
+  const beats = keptBeats || { qi: "", cheng: "", zhuan: "", he: "" };
+  const savedFocus = loadFocusList();
   const locked = s && s.blocked ? "readonly" : "";
   document.getElementById("studio").innerHTML = `
     <div class="studio-top">
@@ -574,9 +596,16 @@ function renderStudio() {
       <p class="beat-label"><b>合</b>收束，可以直接改</p>
       <textarea class="prompt beat" id="beatHe" ${locked}>${esc(beats.he)}</textarea>
       <p class="beat-label"><b>重点提示词</b>必须写进正文，可以直接改</p>
+      <div class="focus-row">
+        <select id="focusPick" aria-label="已保存的重点提示词" ${locked}>
+          <option value="">已保存的重点</option>
+          ${savedFocus.map(row => `<option value="${esc(row.id)}" ${row.id === state.focusId ? "selected" : ""}>${esc(focusLabel(row.text))}</option>`).join("")}
+        </select>
+        <button type="button" id="saveFocus">保存这条</button>
+      </div>
       <textarea class="prompt beat" id="beatFocus" placeholder="这一篇最要写出的东西，比如某个动作、一句话或一种感觉" ${locked}>${esc(keptBeats ? keptBeats.focus : keptFocus)}</textarea>
     </div>
-    <p class="dirty" id="dirty" ${state.dirtySystem || state.dirtyUser ? "" : "hidden"}>起承转合或重点已手动改过。点「按标签重填」会覆盖起承转合这四格，重点会留下。</p>
+    <p class="dirty" id="dirty" ${state.dirtySystem || state.dirtyUser ? "" : "hidden"}>起承转合默认是空的。点「按标签重填」会按当前模板覆盖这四格，重点会留下。</p>
     <div class="actions">
       <button type="button" class="primary" id="copy">复制提示词</button>
       <button type="button" id="refill">按标签重填</button>
@@ -601,6 +630,7 @@ function selectStory(id, keepTemplate) {
   state.off = new Set();
   state.dirtySystem = false;
   state.dirtyUser = false;
+  state.focusId = "";
   state.draft = null;
   const focus = document.getElementById("beatFocus");
   if (focus) focus.value = "";
@@ -662,11 +692,36 @@ document.getElementById("studio").addEventListener("click", async e => {
     state.template = tpl.dataset.tpl;
     state.manualTemplate = true;
     if (state.template === "short") state.words = 1500;
-    state.dirtyUser = false;
     renderStudio();
     return;
   }
-  if (e.target.id === "refill") { state.dirtySystem = false; state.dirtyUser = false; renderStudio(); }
+  if (e.target.id === "refill") {
+    state.dirtySystem = false;
+    const draft = story() ? beatDraft(story()) : { qi: "", cheng: "", zhuan: "", he: "" };
+    const qi = document.getElementById("beatQi");
+    if (qi) {
+      qi.value = draft.qi;
+      document.getElementById("beatCheng").value = draft.cheng;
+      document.getElementById("beatZhuan").value = draft.zhuan;
+      document.getElementById("beatHe").value = draft.he;
+    }
+    state.dirtyUser = true;
+    renderStudio();
+  }
+  if (e.target.id === "saveFocus") {
+    const text = (document.getElementById("beatFocus")?.value || "").trim();
+    if (!text) return;
+    const rows = loadFocusList();
+    let row = rows.find(item => item.text === text);
+    if (!row) {
+      row = { id: Date.now().toString(36), text };
+      rows.unshift(row);
+      writeFocusList(rows);
+    }
+    state.focusId = row.id;
+    state.dirtyUser = true;
+    renderStudio();
+  }
   if (e.target.id === "copy") {
     const text = "【通用模板】\n" + document.getElementById("systemPrompt").value + "\n\n【用户提示词】\n" + collectUserPrompt();
     try { await navigator.clipboard.writeText(text); e.target.textContent = "已复制"; }
@@ -698,6 +753,16 @@ document.getElementById("studio").addEventListener("change", e => {
   if (e.target.id === "lead") {
     state.lead = e.target.value.trim() || "周屿";
     if (!state.dirtyUser) renderStudio();
+  }
+  if (e.target.id === "focusPick") {
+    const row = loadFocusList().find(item => item.id === e.target.value);
+    const area = document.getElementById("beatFocus");
+    if (!row || !area) return;
+    area.value = row.text;
+    state.focusId = row.id;
+    state.dirtyUser = true;
+    const dirty = document.getElementById("dirty");
+    if (dirty) dirty.hidden = false;
   }
 });
 document.getElementById("studio").addEventListener("input", e => {
@@ -787,7 +852,7 @@ let storyRecordId = "";
 let storyBoardId = "";
 function apiUrl(path) {
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return path;
-  return "http://127.0.0.1:8765" + path;
+  return PUBLIC_RELAY + path;
 }
 function plainError(raw, modelId) {
   const text = String(raw || "");
@@ -856,7 +921,8 @@ async function askModel(userPrompt, pendingText) {
     if (reqId !== modelReq) return "";
     if (!out.value) out.value = previous;
     if (err.name === "AbortError") status.textContent = "已停止。";
-    else status.textContent = "没有连上本机转发。在项目目录运行 python tools/serve.py，然后打开 http://127.0.0.1:8765/studio.html";
+    else if (location.hostname === "127.0.0.1" || location.hostname === "localhost") status.textContent = "没有连上本机转发。在项目目录运行 python tools/serve.py，然后打开 http://127.0.0.1:8765/studio.html";
+    else status.textContent = "生成暂时没有连上，请稍后再试。";
     return "";
   }
 }
