@@ -180,7 +180,7 @@
 </div>
 <script src="data/corpus.js"></script>
 <script src="data/board.js?v=12"></script>
-<script src="data/relay.js?v=2"></script>
+<script src="data/relay.js?v=3"></script>
 <script>
 const CATS = [
   ["plot", "情节"],
@@ -852,7 +852,35 @@ let storyRecordId = "";
 let storyBoardId = "";
 function apiUrl(path) {
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return path;
-  return PUBLIC_RELAY + path;
+  return (relayUrl || (typeof PUBLIC_RELAY === "string" ? PUBLIC_RELAY : "")) + path;
+}
+async function refreshRelay() {
+  if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return "";
+  try {
+    const res = await fetch("data/relay.json?t=" + Date.now(), { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.url) relayUrl = String(data.url).replace(/\/$/, "");
+    }
+  } catch (err) {}
+  return relayUrl;
+}
+let relayUrl = typeof PUBLIC_RELAY === "string" ? PUBLIC_RELAY : "";
+refreshRelay();
+async function fetchChat(body, signal) {
+  const send = () => fetch(apiUrl("/api/chat"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal
+  });
+  try {
+    return await send();
+  } catch (err) {
+    if (err.name === "AbortError" || location.hostname === "127.0.0.1" || location.hostname === "localhost") throw err;
+    await refreshRelay();
+    return send();
+  }
 }
 function plainError(raw, modelId) {
   const text = String(raw || "");
@@ -883,18 +911,13 @@ async function askModel(userPrompt, pendingText) {
   const previous = out.value;
   out.value = "";
   try {
-    const res = await fetch(apiUrl("/api/chat"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const res = await fetchChat({
         baseUrl: picked.base,
         apiKey,
         model: picked.id,
         system: document.getElementById("systemPrompt")?.value || "",
         prompt: userPrompt
-      }),
-      signal: controller.signal
-    });
+      }, controller.signal);
     if (reqId !== modelReq) return "";
     if (!res.ok) {
       out.value = previous;

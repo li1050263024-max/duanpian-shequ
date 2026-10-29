@@ -63,11 +63,26 @@
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
 <script src="data/board.js?v=12"></script>
-<script src="data/relay.js?v=2"></script>
+<script src="data/relay.js?v=3"></script>
 <script src="data/docx.js?v=1"></script>
 <script>
 const onLocalHost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
-const apiRoot = onLocalHost ? "" : PUBLIC_RELAY;
+let relayUrl = typeof PUBLIC_RELAY === "string" ? PUBLIC_RELAY : "";
+async function refreshRelay() {
+  if (onLocalHost) return "";
+  try {
+    const res = await fetch("data/relay.json?t=" + Date.now(), { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.url) relayUrl = String(data.url).replace(/\/$/, "");
+    }
+  } catch (err) {}
+  return relayUrl;
+}
+refreshRelay();
+function chatUrl() {
+  return (onLocalHost ? "" : (relayUrl || (typeof PUBLIC_RELAY === "string" ? PUBLIC_RELAY : ""))) + "/api/chat";
+}
 const id = new URLSearchParams(location.search).get("id") || "";
 let record = null;
 const summary = document.getElementById("summary");
@@ -263,7 +278,7 @@ document.getElementById("reviseModel").addEventListener("click", async () => {
   status.textContent = "正在按提示词修改…";
   const previous = out.value;
   try {
-    const res = await fetch(apiRoot + "/api/chat", {
+    const send = () => fetch(chatUrl(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -274,6 +289,14 @@ document.getElementById("reviseModel").addEventListener("click", async () => {
       }),
       signal: controller.signal
     });
+    let res;
+    try {
+      res = await send();
+    } catch (err) {
+      if (err.name === "AbortError" || onLocalHost) throw err;
+      await refreshRelay();
+      res = await send();
+    }
     if (reqId !== modelReq) return;
     if (!res.ok) {
       status.textContent = modelErrorText(await res.text(), picked.id);
