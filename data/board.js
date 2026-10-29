@@ -49,7 +49,8 @@ async function publicRelay(force) {
 async function readSnapshot(url, signal) {
   const res = await fetch(url, { cache: "no-store", signal });
   if (!res.ok) return null;
-  const rows = await res.json();
+  const data = await res.json();
+  const rows = Array.isArray(data) ? data : data && data.items;
   return Array.isArray(rows) ? rows : null;
 }
 
@@ -94,9 +95,24 @@ async function boardRows() {
       clearTimeout(timer);
     }
   }
+  if (!onBoardLocalhost()) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    try {
+      const relay = await publicRelay(false);
+      const rows = relay ? await readSnapshot(relay + "/api/submissions", ctrl.signal) : null;
+      if (rows) {
+        boardSource = "public";
+        return withDrafts(rows, await savedDrafts());
+      }
+    } catch (err) {
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   const rows = await readSnapshot("data/board-snapshot.json");
   if (!rows) throw new Error("投稿列表没有读到。");
-  boardSource = "repo";
+  boardSource = onBoardLocalhost() ? "local" : "repo";
   return withDrafts(rows, await savedDrafts());
 }
 

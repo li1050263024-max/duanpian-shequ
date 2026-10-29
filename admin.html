@@ -43,7 +43,7 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=13"></script>
+<script src="data/board.js?v=14"></script>
 <script src="data/docx.js?v=1"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
@@ -141,7 +141,7 @@ async function loadRows() {
   document.getElementById("summary").textContent = "正在读取提交…";
   try {
     const rows = await boardRows();
-    canManage = true;
+    canManage = boardSource === "local";
     applyRows(rows);
   } catch (err) {
     showOffline();

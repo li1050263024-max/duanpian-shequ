@@ -62,7 +62,7 @@
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
-<script src="data/board.js?v=13"></script>
+<script src="data/board.js?v=14"></script>
 <script src="data/relay.js?v=3"></script>
 <script src="data/docx.js?v=1"></script>
 <script>
@@ -116,7 +116,7 @@ if (!id) {
   boardRows().then(rows => {
     const item = rows.find(row => row.id === id || row._id === id);
     if (!item) throw new Error("missing");
-    showItem(item, true);
+    showItem(item, boardSource === "local");
   }).catch(() => {
     fetch("data/public-submissions.json").then(res => {
       if (!res.ok) throw new Error(String(res.status));

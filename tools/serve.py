@@ -409,15 +409,40 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 class PublicHandler(Handler):
-    """公网通道只接受生成请求和新投稿，不暴露稿库读取、修改或删除。"""
+    """公网通道可提交和只读已投稿稿件，不暴露草稿、回收站或管理操作。"""
 
     def do_GET(self):
+        if self.path.split("?", 1)[0] == "/api/submissions":
+            with STORE_LOCK:
+                items = [
+                    item for item in load_board()
+                    if item.get("status") in (None, "", "submitted")
+                ]
+            self._json(200, {"items": items})
+            return
         self.send_error(404)
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/submit":
-            self._save_submission(load_board, write_board)
+            length = int(self.headers.get("Content-Length") or 0)
+            if length <= 0 or length > 500_000:
+                self._text(400, "请求体无效")
+                return
+            try:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            except json.JSONDecodeError:
+                self._text(400, "请求不是 JSON")
+                return
+            body.pop("id", None)
+            body.pop("_id", None)
+            body.pop("action", None)
+            body["status"] = "submitted"
+            item, err = upsert_submission(body, load_board, write_board)
+            if err:
+                self._text(400, err)
+                return
+            self._json(200, {"item": item})
             return
         if path == "/api/chat":
             super().do_POST()
