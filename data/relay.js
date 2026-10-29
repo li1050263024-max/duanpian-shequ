@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://fitted-scroll-plane-discipline.trycloudflare.com";
+const PUBLIC_RELAY = "https://api.trycloudflare.com";
