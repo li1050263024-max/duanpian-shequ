@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://climate-champagne-legendary-solving.trycloudflare.com";
+const PUBLIC_RELAY = "https://wichita-mysql-competing-adjustments.trycloudflare.com";
