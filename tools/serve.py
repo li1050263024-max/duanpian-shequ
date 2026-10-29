@@ -408,22 +408,28 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(raw)
 
 
-class ChatHandler(Handler):
+class PublicHandler(Handler):
+    """公网通道只接受生成请求和新投稿，不暴露稿库读取、修改或删除。"""
+
     def do_GET(self):
         self.send_error(404)
 
     def do_POST(self):
-        if self.path.split("?", 1)[0] != "/api/chat":
-            self.send_error(404)
+        path = self.path.split("?", 1)[0]
+        if path == "/api/submit":
+            self._save_submission(load_board, write_board)
             return
-        super().do_POST()
+        if path == "/api/chat":
+            super().do_POST()
+            return
+        self.send_error(404)
 
 
 if __name__ == "__main__":
     os.chdir(ROOT)
     chat_only = "--chat-only" in sys.argv
     port = 8766 if chat_only else PORT
-    server = ThreadingHTTPServer((HOST, port), ChatHandler if chat_only else Handler)
+    server = ThreadingHTTPServer((HOST, port), PublicHandler if chat_only else Handler)
     if chat_only:
         print("生成转发：http://%s:%s/api/chat" % (HOST, port), flush=True)
     else:

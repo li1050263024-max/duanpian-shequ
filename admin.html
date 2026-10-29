@@ -35,6 +35,7 @@
     </div>
     <div class="nav">
       <button type="button" id="refresh">刷新</button>
+      <button type="button" id="downloadAll" hidden>下载全部</button>
       <a href="admin.html" id="tabList">投稿</a>
       <a href="admin.html?bin=1" id="tabBin">回收站</a>
       <a href="studio.html">返回生成面板</a>
@@ -42,7 +43,8 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=11"></script>
+<script src="data/board.js?v=13"></script>
+<script src="data/docx.js?v=1"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -57,10 +59,12 @@ function when(value) {
 let items = [];
 function summaryText() {
   const fresh = boardSource === "repo" ? "稿在仓库里，不会自动抄进本机。" : "";
+  const drafts = items.filter(item => item.status === "saved").length;
+  const draftNote = drafts ? `其中 ${drafts} 篇是本机保存、还没提交。` : "";
   if (!items.length) return (bin ? "回收站是空的。" : "还没有人提交。") + (fresh ? " " + fresh : "");
   if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。${fresh ? " " + fresh : ""}`;
-  if (canManage) return `已提交 ${items.length} 篇。双击改正文，删除后进入回收站。${fresh ? " " + fresh : ""}`;
-  return `已提交 ${items.length} 篇。双击可以查看正文。${fresh ? " " + fresh : ""}`;
+  if (canManage) return `列表里有 ${items.length} 篇。${draftNote}双击改正文，删除后进入回收站。${fresh ? " " + fresh : ""}`;
+  return `列表里有 ${items.length} 篇。${draftNote}双击可以查看正文。${fresh ? " " + fresh : ""}`;
 }
 function render() {
   const box = document.getElementById("list");
@@ -69,16 +73,17 @@ function render() {
     box.innerHTML = `<div class="empty">${bin ? "回收站是空的。" : "还没有提交。"}</div>`;
     return;
   }
-  const opsHead = canManage ? "<th></th>" : "";
+  document.getElementById("downloadAll").hidden = bin || !items.length;
+  const opsHead = canManage ? "<th>操作</th>" : "";
   const opsCell = item => {
     if (!canManage) return "";
     if (bin) {
       return `<td class="ops"><button type="button" data-action="restore">恢复</button> <button type="button" class="danger" data-action="purge">彻底删除</button></td>`;
     }
-    return `<td class="ops"><button type="button" class="danger" data-action="delete">删除</button></td>`;
+    return `<td class="ops"><button type="button" data-action="view">查看</button> <button type="button" data-action="download">下载</button> <button type="button" class="danger" data-action="delete">删除</button></td>`;
   };
   box.innerHTML = `<table><thead><tr><th>提交人</th><th>标题</th><th>标签</th><th>时间</th>${opsHead}</tr></thead><tbody>${
-    items.map(item => `<tr data-id="${esc(item.id)}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.deletedAt || item.updatedAt || item.createdAt))}</td>${opsCell(item)}</tr>`).join("")
+    items.map(item => `<tr data-id="${esc(item.id)}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}${item.status === "saved" ? "（未提交）" : ""}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.deletedAt || item.updatedAt || item.createdAt))}</td>${opsCell(item)}</tr>`).join("")
   }</tbody></table>`;
 }
 document.getElementById("list").addEventListener("dblclick", e => {
@@ -95,6 +100,15 @@ document.getElementById("list").addEventListener("click", async e => {
   const id = row.dataset.id;
   const action = btn.dataset.action;
   const item = items.find(rowItem => rowItem.id === id);
+  if (action === "view") {
+    location.href = "admin-edit.html?id=" + encodeURIComponent(id);
+    return;
+  }
+  if (action === "download") {
+    const filename = String(item && item.title || "投稿").replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 80) || "投稿";
+    downloadStoriesDocx([item], filename + ".docx");
+    return;
+  }
   const name = item && item.title ? item.title : "这篇";
   if (action === "delete" && !confirm(`把「${name}」放进回收站？`)) return;
   if (action === "purge" && !confirm(`彻底删除「${name}」？回收站里也不会留下。`)) return;
@@ -113,7 +127,7 @@ document.getElementById("list").addEventListener("click", async e => {
 });
 function applyRows(data) {
   const rows = Array.isArray(data) ? data : (data.items || []);
-  items = rows.filter(item => bin ? item.status === "deleted" : (!item.status || item.status === "submitted"));
+  items = rows.filter(item => bin ? item.status === "deleted" : (!item.status || item.status === "submitted" || item.status === "saved"));
   render();
 }
 function showOffline() {
@@ -136,6 +150,10 @@ async function loadRows() {
   }
 }
 document.getElementById("refresh").addEventListener("click", loadRows);
+document.getElementById("downloadAll").addEventListener("click", () => {
+  const submitted = items.filter(item => !item.status || item.status === "submitted");
+  if (submitted.length) downloadStoriesDocx(submitted, "全部投稿.docx");
+});
 loadRows();
 </script>
 </body>
