@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://highest-litigation-detector-preferences.trycloudflare.com";
+const PUBLIC_RELAY = "https://watching-weblogs-till-fill.trycloudflare.com";
