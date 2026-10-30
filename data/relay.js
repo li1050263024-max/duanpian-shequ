@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://surfaces-simplified-graham-housewives.trycloudflare.com";
+const PUBLIC_RELAY = "https://attribute-easier-recognised-articles.trycloudflare.com";
