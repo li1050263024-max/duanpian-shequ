@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://goal-stanley-assure-harris.trycloudflare.com";
+const PUBLIC_RELAY = "https://assembled-hygiene-earl-bulk.trycloudflare.com";
