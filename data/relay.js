@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://colour-likes-lake-auction.trycloudflare.com";
+const PUBLIC_RELAY = "https://colleague-rivers-championship-pmc.trycloudflare.com";
