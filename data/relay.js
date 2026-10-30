@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://make-tomato-zip-squad.trycloudflare.com";
+const PUBLIC_RELAY = "https://bit-tea-jacob-changelog.trycloudflare.com";
