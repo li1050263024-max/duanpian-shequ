@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://attribute-easier-recognised-articles.trycloudflare.com";
+const PUBLIC_RELAY = "https://equation-bookmark-menus-adrian.trycloudflare.com";
