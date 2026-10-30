@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://distributed-sim-trader-investigate.trycloudflare.com";
+const PUBLIC_RELAY = "https://thousand-award-hunt-drop.trycloudflare.com";
