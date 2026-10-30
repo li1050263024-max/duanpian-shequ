@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://colleague-rivers-championship-pmc.trycloudflare.com";
+const PUBLIC_RELAY = "https://highest-litigation-detector-preferences.trycloudflare.com";
