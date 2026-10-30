@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://lined-occupation-merger-seattle.trycloudflare.com";
+const PUBLIC_RELAY = "https://founder-assignments-constraints-detailed.trycloudflare.com";
