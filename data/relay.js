@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://plus-expected-americas-replica.trycloudflare.com";
+const PUBLIC_RELAY = "https://api.trycloudflare.com";
