@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """同时提供面板页面，并把生成请求转发到 OpenAI 兼容接口。只监听本机。"""
+import base64
 import json
 import os
 import re
@@ -20,6 +21,7 @@ STORE = ROOT / "data" / "submissions.json"
 ARCHIVE = ROOT / "data" / "我的全部稿件.json"
 SNAPSHOT = ROOT / "data" / "board-snapshot.json"
 PUBLIC = ROOT / "data" / "public-submissions.json"
+COVERS = ROOT / "assets" / "covers"
 STORE_LOCK = threading.Lock()
 
 
@@ -121,12 +123,31 @@ def load_board():
     return load_list(SNAPSHOT)
 
 
+def remember_locally(items):
+    """把稿并进 git 忽略的本机稿库。这里的文件不会被 Git 回滚清掉。"""
+    by_id = {}
+    order = []
+    for item in list(items) + load_list(STORE):
+        key = str(item.get("id") or item.get("_id") or "")
+        if not key:
+            continue
+        previous = by_id.get(key)
+        if previous is None:
+            by_id[key] = dict(item)
+            order.append(key)
+            continue
+        if len(str(item.get("content") or "")) > len(str(previous.get("content") or "")):
+            by_id[key] = dict(item)
+    write_personal([by_id[key] for key in order])
+
+
 def write_board(items):
     SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(items, ensure_ascii=False, indent=2) + "\n"
     published = [item for item in items if item.get("status") == "submitted"]
     SNAPSHOT.write_text(text, encoding="utf-8")
     PUBLIC.write_text(json.dumps(published, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    remember_locally(items)
 
 
 def clip(value, limit):
@@ -170,7 +191,70 @@ def upsert_submission(body, load=load_submissions, write=write_personal):
             "updatedAt": now,
             "deletedAt": (body.get("deletedAt") or now) if status == "deleted" else "",
         })
+        if "cover" in body:
+            cover = clip(body.get("cover"), 180)
+            if cover.startswith("assets/covers/") and ".." not in cover:
+                found["cover"] = cover
+            else:
+                found.pop("cover", None)
         write(items)
+        return dict(found), ""
+
+
+COVER_TYPES = {
+    "image/jpeg": ("jpg", b"\xff\xd8"),
+    "image/jpg": ("jpg", b"\xff\xd8"),
+    "image/png": ("png", b"\x89PNG\r\n\x1a\n"),
+    "image/gif": ("gif", b"GIF8"),
+    "image/webp": ("webp", b"RIFF"),
+}
+
+
+def save_cover(body):
+    incoming_id = clip(body.get("id") or body.get("_id"), 40)
+    image = str(body.get("image") or "")
+    if not incoming_id:
+        return None, "没有这条记录"
+    if not image.startswith("data:") or ";base64," not in image:
+        return None, "封面需要是图片"
+    header, encoded = image.split(";base64,", 1)
+    kind = header[5:].split(";", 1)[0].lower()
+    spec = COVER_TYPES.get(kind)
+    if spec is None:
+        return None, "封面需要是图片"
+    ext, magic = spec
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except Exception:
+        return None, "封面无效"
+    if len(data) < 32 or len(data) > 40_000_000 or not data.startswith(magic):
+        return None, "封面不是图片"
+    if ext == "webp" and data[8:12] != b"WEBP":
+        return None, "封面不是图片"
+    safe = re.sub(r"[^0-9a-zA-Z]", "", incoming_id)[:40]
+    if not safe:
+        return None, "没有这条记录"
+    rel = "assets/covers/" + safe + "." + ext
+    now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    with STORE_LOCK:
+        found = None
+        for load, write in ((load_board, write_board), (load_submissions, write_personal)):
+            items = load()
+            for item in items:
+                if incoming_id in (str(item.get("id") or ""), str(item.get("_id") or "")):
+                    found = item
+                    break
+            if found:
+                COVERS.mkdir(parents=True, exist_ok=True)
+                for old in COVERS.glob(safe + ".*"):
+                    old.unlink()
+                (COVERS / (safe + "." + ext)).write_bytes(data)
+                found["cover"] = rel
+                found["updatedAt"] = now
+                write(items)
+                break
+        if found is None:
+            return None, "没有这条记录"
         return dict(found), ""
 
 
@@ -242,6 +326,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/board":
             self._save_submission(load_board, write_board)
+            return
+        if path == "/api/cover":
+            self._save_cover()
             return
         if path != "/api/chat":
             self.send_error(404)
@@ -372,9 +459,25 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.flush()
         return True
 
+    def _save_cover(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > 56_000_000:
+            self._text(400, "封面太大")
+            return
+        try:
+            body = json.loads(self.rfile.read(length).decode("utf-8"))
+        except json.JSONDecodeError:
+            self._text(400, "请求不是 JSON")
+            return
+        item, err = save_cover(body)
+        if err:
+            self._text(400, err)
+            return
+        self._json(200, {"item": item})
+
     def _save_submission(self, load, write):
         length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0 or length > 500_000:
+        if length <= 0 or length > 2_000_000:
             self._text(400, "请求体无效")
             return
         try:

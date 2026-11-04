@@ -1,5 +1,8 @@
 let boardSource = "";
+let boardCache = [];
+let crudIds = {};
 const BOARD_DRAFTS_KEY = "storygen.submissionDrafts";
+const CRUD_BOARD = "https://crudcrud.com/api/63224c73389c46d184547c139a387a9e/submissions";
 
 function localApi(path) {
   const host = location.hostname;
@@ -78,6 +81,90 @@ function withDrafts(rows, drafts) {
   return extra.concat(rows);
 }
 
+function storyKey(item) {
+  return String((item && (item.id || item._id)) || "");
+}
+
+function asStory(row) {
+  if (!row) return null;
+  const id = String(row.id || "");
+  if (!/^[0-9a-zA-Z]{8,40}$/.test(id)) return null;
+  const cover = String(row.cover || "");
+  const safeCover = cover.startsWith("data:image/")
+    ? cover
+    : (cover.startsWith("assets/covers/") && cover.indexOf("..") < 0 ? cover.slice(0, 180) : "");
+  return {
+    id,
+    _id: id,
+    crudId: row.crudId || "",
+    status: row.status || "submitted",
+    author: String(row.author || ""),
+    title: String(row.title || ""),
+    tag: String(row.tag || ""),
+    cover: safeCover,
+    content: String(row.content || ""),
+    createdAt: row.createdAt || "",
+    updatedAt: row.updatedAt || "",
+    deletedAt: row.deletedAt || ""
+  };
+}
+
+function mergeStory(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const prevTime = Date.parse(prev.updatedAt || prev.createdAt || 0) || 0;
+  const nextTime = Date.parse(next.updatedAt || next.createdAt || 0) || 0;
+  const newer = nextTime >= prevTime ? next : prev;
+  const older = newer === next ? prev : next;
+  const merged = Object.assign({}, older, newer);
+  if (String(older.content || "").length > String(newer.content || "").length) merged.content = older.content;
+  const covers = [String(newer.cover || ""), String(older.cover || "")];
+  merged.cover = covers.find(value => value.startsWith("data:image/")) || covers.find(Boolean) || "";
+  merged.id = storyKey(prev) || storyKey(next);
+  merged._id = merged.id;
+  merged.crudId = next.crudId || prev.crudId || "";
+  return merged;
+}
+
+function mergeBoard(base, extra) {
+  const byId = {};
+  const order = [];
+  base.concat(extra).forEach(item => {
+    const story = asStory(item);
+    if (!story) return;
+    if (!byId[story.id]) order.push(story.id);
+    byId[story.id] = mergeStory(byId[story.id], story);
+  });
+  return order.map(id => byId[id]);
+}
+
+async function crudRows() {
+  try {
+    const res = await fetch(CRUD_BOARD, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    crudIds = {};
+    return data.map(row => {
+      const story = asStory(row);
+      if (story && row._id) {
+        story.crudId = row._id;
+        crudIds[story.id] = row._id;
+      }
+      return story;
+    }).filter(Boolean);
+  } catch (err) {
+    return [];
+  }
+}
+
+async function finishRows(rows) {
+  const cloud = await crudRows();
+  const merged = withDrafts(mergeBoard(rows, cloud), await savedDrafts());
+  boardCache = merged;
+  return merged;
+}
+
 async function boardRows() {
   boardSource = "";
   const local = localApi("data/board-snapshot.json");
@@ -88,22 +175,7 @@ async function boardRows() {
       const rows = await readSnapshot(local, ctrl.signal);
       if (rows) {
         boardSource = "local";
-        return withDrafts(rows, await savedDrafts());
-      }
-    } catch (err) {
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  if (!onBoardLocalhost()) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 3000);
-    try {
-      const relay = await publicRelay(false);
-      const rows = relay ? await readSnapshot(relay + "/api/submissions", ctrl.signal) : null;
-      if (rows) {
-        boardSource = "public";
-        return withDrafts(rows, await savedDrafts());
+        return finishRows(rows);
       }
     } catch (err) {
     } finally {
@@ -113,7 +185,7 @@ async function boardRows() {
   const rows = await readSnapshot("data/board-snapshot.json");
   if (!rows) throw new Error("投稿列表没有读到。");
   boardSource = onBoardLocalhost() ? "local" : "repo";
-  return withDrafts(rows, await savedDrafts());
+  return finishRows(rows);
 }
 
 function boardBody(item) {
@@ -121,6 +193,8 @@ function boardBody(item) {
   let status = "submitted";
   if (item.status === "deleted" || item.status === "saved") status = item.status;
   const id = String(item.id || item._id || "").slice(0, 40);
+  const cover = String(item.cover || "");
+  const safeCover = cover.startsWith("assets/covers/") && !cover.includes("..") ? cover.slice(0, 180) : "";
   return {
     _id: id,
     id,
@@ -128,6 +202,7 @@ function boardBody(item) {
     author: String(item.author || "").slice(0, 40),
     title: String(item.title || "").slice(0, 80) || "未命名",
     tag: String(item.tag || "").slice(0, 80),
+    cover: safeCover,
     content: String(item.content || ""),
     createdAt: item.createdAt || now,
     updatedAt: now,
@@ -150,6 +225,56 @@ async function boardFetch(url, options) {
   return last;
 }
 
+function relayPayload(item) {
+  const record = boardBody(item);
+  const cover = String(item.cover || "");
+  if (cover.startsWith("data:image/")) record.cover = cover;
+  delete record._id;
+  delete record.crudId;
+  return record;
+}
+
+async function crudUpsert(item) {
+  const payload = relayPayload(item);
+  const id = payload.id;
+  if (!id) throw new Error("没有这条记录。");
+  let crudId = item.crudId || crudIds[id] || "";
+  if (!crudId) {
+    await crudRows();
+    crudId = crudIds[id] || "";
+  }
+  const headers = { "Content-Type": "application/json" };
+  if (crudId) {
+    const res = await boardFetch(CRUD_BOARD + "/" + crudId, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(payload)
+    });
+    if (!res || !res.ok) {
+      const message = res ? await res.text() : "";
+      throw new Error(message || "云端没有保存。");
+    }
+    crudIds[id] = crudId;
+    return Object.assign({}, item, payload, { id, _id: id, crudId });
+  }
+  const res = await boardFetch(CRUD_BOARD, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+  if (!res || !res.ok) {
+    const message = res ? await res.text() : "";
+    throw new Error(message || "云端没有保存。");
+  }
+  const saved = await res.json();
+  const story = asStory(saved);
+  if (story && saved._id) {
+    story.crudId = saved._id;
+    crudIds[id] = saved._id;
+  }
+  return story || Object.assign({}, payload, { id, _id: id });
+}
+
 async function boardSave(item) {
   const record = boardBody(item);
   if (record.status === "saved" && !onBoardLocalhost()) {
@@ -160,36 +285,50 @@ async function boardSave(item) {
     writeBrowserDrafts(rows);
     return record;
   }
-  const path = record.status === "saved" ? "/api/submissions" : "/api/board";
-  let url = localApi(path);
-  if (!onBoardLocalhost() && record.status === "submitted") {
-    const relay = await publicRelay(false);
-    if (!relay) throw new Error("投稿通道暂时没有连接，请稍后再试。");
-    url = relay + "/api/submit";
+  if (!onBoardLocalhost()) {
+    if (record.status !== "submitted") throw new Error("这里只能提交，不能删除。");
+    const saved = await crudUpsert(item);
+    removeBrowserDraft(record.id);
+    return saved;
   }
-  let res = await boardFetch(url, {
+  const path = record.status === "saved" ? "/api/submissions" : "/api/board";
+  const res = await boardFetch(localApi(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(record)
   });
-  if ((!res || !res.ok) && !onBoardLocalhost() && record.status === "submitted") {
-    const relay = await publicRelay(true);
-    if (relay && url !== relay + "/api/submit") {
-      res = await boardFetch(relay + "/api/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(record)
-      });
-    }
-  }
   if (!res || !res.ok) {
     throw new Error(record.status === "saved"
       ? "这次没有保存到本机。先运行 python tools/serve.py。"
-      : "投稿通道暂时没有连接，请稍后再试。");
+      : "投稿没有保存。");
   }
   const data = await res.json();
-  if (record.status === "submitted") removeBrowserDraft(record.id);
-  return data.item || record;
+  const saved = data.item || record;
+  if (record.status === "submitted") {
+    removeBrowserDraft(record.id);
+    await crudUpsert(Object.assign({}, item, saved, { cover: item.cover || saved.cover || "" }));
+  }
+  return saved;
+}
+
+async function boardCover(id, image) {
+  if (!String(image || "").startsWith("data:image/")) throw new Error("封面需要是图片");
+  const current = boardCache.find(item => storyKey(item) === String(id)) || { id, status: "submitted" };
+  const next = Object.assign({}, current, { cover: image });
+  if (!onBoardLocalhost()) return crudUpsert(next);
+  const res = await boardFetch(localApi("/api/cover"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, image })
+  });
+  if (!res || !res.ok) {
+    const message = res ? await res.text() : "";
+    throw new Error(message || "封面没有传上。");
+  }
+  const data = await res.json();
+  const saved = data.item || next;
+  await crudUpsert(Object.assign({}, next, saved, { cover: image }));
+  return saved;
 }
 
 async function boardPurge(item) {
