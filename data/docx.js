@@ -15,7 +15,7 @@ function crc32(bytes) {
   return (~c) >>> 0;
 }
 
-function zipStore(files) {
+function zipStore(files, mime) {
   const encoder = new TextEncoder();
   const parts = [];
   const central = [];
@@ -60,7 +60,7 @@ function zipStore(files) {
   ev.setUint32(12, centralSize, true);
   ev.setUint32(16, offset, true);
   return new Blob(parts.concat(central, [end]), {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    type: mime || "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   });
 }
 
@@ -99,8 +99,7 @@ function storiesDocx(items) {
   ]);
 }
 
-function downloadStoriesDocx(items, filename) {
-  const blob = storiesDocx(items);
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -109,4 +108,25 @@ function downloadStoriesDocx(items, filename) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function storyFileName(item, used) {
+  const raw = String(item && item.title || "投稿").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "投稿";
+  const next = (used.get(raw) || 0) + 1;
+  used.set(raw, next);
+  return (next === 1 ? raw : raw + " " + next) + ".docx";
+}
+
+function downloadStoriesDocx(items, filename) {
+  downloadBlob(storiesDocx(items), filename);
+}
+
+async function downloadStoriesSeparately(items) {
+  const used = new Map();
+  const files = [];
+  for (const item of items) {
+    const blob = storiesDocx([item]);
+    files.push({ name: storyFileName(item, used), data: new Uint8Array(await blob.arrayBuffer()) });
+  }
+  downloadBlob(zipStore(files, "application/zip"), "全部投稿.zip");
 }

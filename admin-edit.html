@@ -62,7 +62,7 @@
   </form>
   <div class="empty" id="missing" hidden>没有找到这条记录。</div>
 </div>
-<script src="data/board.js?v=14"></script>
+<script src="data/board.js?v=16"></script>
 <script src="data/relay.js?v=3"></script>
 <script src="data/docx.js?v=1"></script>
 <script>
@@ -164,6 +164,7 @@ form.addEventListener("submit", async e => {
       author,
       title,
       tag,
+      cover: record && record.cover || "",
       content,
       createdAt: record && record.createdAt,
       deletedAt: ""

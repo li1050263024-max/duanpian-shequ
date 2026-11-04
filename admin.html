@@ -8,7 +8,13 @@
   :root { --bg: #e7e7ea; --card: #fff; --ink: #222; --muted: #8a8a8a; --line: #eee; --blue: #3b86e8; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
-  .app { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+  .app { max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
+  td.cover { width: 72px; }
+  .cover-up { display: grid; gap: 4px; justify-items: start; cursor: pointer; }
+  .cover-up img, .cover-up .ph { width: 48px; height: 64px; border-radius: 4px; object-fit: cover; background: #f3f4f6; }
+  .cover-up .ph { display: grid; place-items: center; color: #aaa; font-size: 11px; }
+  .cover-up input { display: none; }
+  .cover-up span { color: var(--blue); font-size: 12px; }
   header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
   h1 { margin: 0; font-size: 20px; }
   a { color: var(--blue); font-size: 13px; text-decoration: none; }
@@ -43,8 +49,8 @@
   </header>
   <div id="list"></div>
 </div>
-<script src="data/board.js?v=14"></script>
-<script src="data/docx.js?v=1"></script>
+<script src="data/board.js?v=16"></script>
+<script src="data/docx.js?v=2"></script>
 <script>
 const bin = new URLSearchParams(location.search).get("bin") === "1";
 let canManage = false;
@@ -64,7 +70,7 @@ function summaryText() {
   if (!items.length) return (bin ? "回收站是空的。" : "还没有人提交。") + (fresh ? " " + fresh : "");
   if (bin) return `回收站有 ${items.length} 篇。可以恢复，或彻底删除。${fresh ? " " + fresh : ""}`;
   if (canManage) return `列表里有 ${items.length} 篇。${draftNote}双击改正文，删除后进入回收站。${fresh ? " " + fresh : ""}`;
-  return `列表里有 ${items.length} 篇。${draftNote}双击可以查看正文。${fresh ? " " + fresh : ""}`;
+  return `列表里有 ${items.length} 篇。${draftNote}可以下载，也可以上传封面。${fresh ? " " + fresh : ""}`;
 }
 function render() {
   const box = document.getElementById("list");
@@ -74,27 +80,66 @@ function render() {
     return;
   }
   document.getElementById("downloadAll").hidden = bin || !items.length;
-  const opsHead = canManage ? "<th>操作</th>" : "";
+  const opsHead = "<th>操作</th>";
   const opsCell = item => {
-    if (!canManage) return "";
     if (bin) {
+      if (!canManage) return "<td></td>";
       return `<td class="ops"><button type="button" data-action="restore">恢复</button> <button type="button" class="danger" data-action="purge">彻底删除</button></td>`;
     }
-    return `<td class="ops"><button type="button" data-action="view">查看</button> <button type="button" data-action="download">下载</button> <button type="button" class="danger" data-action="delete">删除</button></td>`;
+    const remove = canManage ? ` <button type="button" class="danger" data-action="delete">删除</button>` : "";
+    return `<td class="ops"><button type="button" data-action="view">查看</button> <button type="button" data-action="download">下载</button>${remove}</td>`;
   };
-  box.innerHTML = `<table><thead><tr><th>提交人</th><th>标题</th><th>标签</th><th>时间</th>${opsHead}</tr></thead><tbody>${
-    items.map(item => `<tr data-id="${esc(item.id)}"><td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}${item.status === "saved" ? "（未提交）" : ""}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.deletedAt || item.updatedAt || item.createdAt))}</td>${opsCell(item)}</tr>`).join("")
+  const coverCell = item => {
+    const src = item.cover ? esc(item.cover) : "";
+    const preview = src ? `<img src="${src}" alt="">` : `<i class="ph">无</i>`;
+    const upload = !bin ? `<input type="file" accept="image/*" data-cover><span>上传</span>` : "";
+    return `<td class="cover"><label class="cover-up">${preview}${upload}</label></td>`;
+  };
+  box.innerHTML = `<table><thead><tr><th>封面</th><th>提交人</th><th>标题</th><th>标签</th><th>时间</th>${opsHead}</tr></thead><tbody>${
+    items.map(item => `<tr data-id="${esc(item.id)}">${coverCell(item)}<td>${esc(item.author || "未填")}</td><td>${esc(item.title || "未命名")}${item.status === "saved" ? "（未提交）" : ""}</td><td>${esc(item.tag || "")}</td><td>${esc(when(item.deletedAt || item.updatedAt || item.createdAt))}</td>${opsCell(item)}</tr>`).join("")
   }</tbody></table>`;
 }
+function readCover(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || file.type.indexOf("image/") !== 0) {
+      reject(new Error("请选择图片"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("这张图打不开"));
+    reader.readAsDataURL(file);
+  });
+}
+document.getElementById("list").addEventListener("change", async e => {
+  const input = e.target.closest("[data-cover]");
+  if (!input || bin || !input.files || !input.files[0]) return;
+  const row = input.closest("[data-id]");
+  if (!row) return;
+  const item = items.find(rowItem => rowItem.id === row.dataset.id);
+  if (!item) return;
+  document.getElementById("summary").textContent = "正在上传封面…";
+  try {
+    const image = await readCover(input.files[0]);
+    const saved = await boardCover(item.id, image);
+    item.cover = saved.cover;
+    render();
+    document.getElementById("summary").textContent = "封面已保存。";
+  } catch (err) {
+    document.getElementById("summary").textContent = err && err.message ? err.message : "封面没有传上。";
+  }
+});
 document.getElementById("list").addEventListener("dblclick", e => {
-  if (e.target.closest("button")) return;
+  if (e.target.closest("button") || e.target.closest(".cover-up")) return;
   const row = e.target.closest("[data-id]");
   if (!row || bin) return;
   location.href = "admin-edit.html?id=" + encodeURIComponent(row.dataset.id);
 });
 document.getElementById("list").addEventListener("click", async e => {
   const btn = e.target.closest("[data-action]");
-  if (!btn || !canManage) return;
+  if (!btn) return;
+  const openAction = btn.dataset.action === "view" || btn.dataset.action === "download";
+  if (!openAction && !canManage) return;
   const row = btn.closest("[data-id]");
   if (!row) return;
   const id = row.dataset.id;
@@ -152,7 +197,7 @@ async function loadRows() {
 document.getElementById("refresh").addEventListener("click", loadRows);
 document.getElementById("downloadAll").addEventListener("click", () => {
   const submitted = items.filter(item => !item.status || item.status === "submitted");
-  if (submitted.length) downloadStoriesDocx(submitted, "全部投稿.docx");
+  if (submitted.length) downloadStoriesSeparately(submitted);
 });
 loadRows();
 </script>
