@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://toolbox-camp-expenditure-simply.trycloudflare.com";
+const PUBLIC_RELAY = "https://session-insured-stationery-annotated.trycloudflare.com";
