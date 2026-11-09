@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://venue-grove-producer-dsc.trycloudflare.com";
+const PUBLIC_RELAY = "https://mice-leave-character-query.trycloudflare.com";
