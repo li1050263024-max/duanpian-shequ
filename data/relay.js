@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://mice-leave-character-query.trycloudflare.com";
+const PUBLIC_RELAY = "https://api.trycloudflare.com";
