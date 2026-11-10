@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://competitions-tuning-crossword-earth.trycloudflare.com";
+const PUBLIC_RELAY = "https://yesterday-cope-tracking-creator.trycloudflare.com";
