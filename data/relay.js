@@ -1,1 +1,1 @@
-const PUBLIC_RELAY = "https://yesterday-cope-tracking-creator.trycloudflare.com";
+const PUBLIC_RELAY = "https://media-belle-seeing-sectors.trycloudflare.com";
