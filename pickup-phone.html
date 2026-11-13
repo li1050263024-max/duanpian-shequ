@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>捡手机模式</title>
+<style>
+:root {
+  --blue: #5b9cf5;
+  --blue-deep: #4a8eef;
+  --blue-soft: #e8f3ff;
+  --seg: #9ec4f0;
+  --ink: #1f1f1f;
+  --muted: #9b9b9b;
+  --label: #6b6b6b;
+  --line: #f0f0f0;
+  --bg: #f5f6f8;
+  --field: #f3f5f8;
+  --field-line: #d5e4f4;
+  --wx: #ededed;
+  --me: #95ec69;
+  --gold: #e2b657;
+  --gold-soft: #fff8e8;
+  --danger: #ff4d6a;
+  --phone-w: 390px;
+  --phone-h: 844px;
+}
+* { box-sizing: border-box }
+html, body { margin: 0; min-height: 100%; font-family: "PingFang SC", "SF Pro Text", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased }
+body { background: #dfe3ea; display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 24px; flex-wrap: wrap }
+button, input, textarea, select { font: inherit; color: inherit }
+button { cursor: pointer }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
+[hidden] { display: none !important }
+
+.side { width: 220px; background: #fff; border-radius: 18px; padding: 16px; box-shadow: 0 12px 32px #00000014 }
+.side h1 { margin: 0 0 6px; font-size: 18px }
+.side p { margin: 0 0 12px; color: #888; font-size: 12px; line-height: 1.5 }
+.side a { display: flex; align-items: center; justify-content: center; height: 36px; border: 1px solid #e6e6e6; border-radius: 10px; text-decoration: none; color: inherit; font-size: 13px; margin-top: 8px }
+.side .hint { font-size: 11px; color: #aaa; margin-top: 14px; line-height: 1.55 }
+
+.device {
+  position: relative; width: var(--phone-w); height: min(var(--phone-h), calc(100vh - 32px)); min-height: 700px; flex: none;
+  padding: 11px; border-radius: 52px; background: linear-gradient(160deg, #2a2a2e, #111116 40%, #0a0a0c);
+  box-shadow: 0 0 0 1px #3a3a40, 0 28px 70px rgba(0,0,0,.32), inset 0 0 0 1px #00000055;
+}
+.device::before, .device::after { content: ""; position: absolute; width: 3px; background: #3a3a3a }
+.device::before { left: -3px; top: 118px; height: 26px; border-radius: 2px 0 0 2px; box-shadow: 0 42px 0 #3a3a3a, 0 84px 0 #3a3a3a }
+.device::after { right: -3px; top: 168px; height: 58px; border-radius: 0 2px 2px 0 }
+.screen { height: 100%; border-radius: 42px; overflow: hidden; background: #fff; position: relative; display: flex; flex-direction: column }
+.island { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 118px; height: 34px; background: #0b0b0d; border-radius: 20px; z-index: 5; pointer-events: none }
+.status { flex: none; height: 48px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 22px 8px; font-size: 15px; font-weight: 650; letter-spacing: .2px; background: #fff; position: relative; z-index: 4 }
+.status-left { display: flex; align-items: center; gap: 5px }
+.status-silent { width: 12px; height: 12px; opacity: .85; display: inline-block; background: no-repeat center / contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2'%3E%3Cpath d='M4 4l16 16'/%3E%3Cpath d='M10 5a2 2 0 014 0v1a6 6 0 012.5 4.8V14l1.2 1.2'/%3E%3Cpath d='M6.2 10.4A6 6 0 017 6v-.2'/%3E%3Cpath d='M9 18a3 3 0 006 0'/%3E%3C/svg%3E") }
+.status-icons { display: flex; gap: 6px; align-items: center }
+.status-icons .sig { width: 17px; height: 11px; display: flex; align-items: flex-end; gap: 1.5px }
+.status-icons .sig b { display: block; width: 3px; background: #111; border-radius: 1px }
+.status-icons .sig b:nth-child(1){height:3px}.status-icons .sig b:nth-child(2){height:5px}.status-icons .sig b:nth-child(3){height:7px}.status-icons .sig b:nth-child(4){height:10px}
+.status-icons .wifi { width: 15px; height: 11px; border: 2px solid #111; border-top: 0; border-radius: 0 0 10px 10px; position: relative; opacity: .95 }
+.status-icons .wifi::before { content:""; position:absolute; left:50%; top:-5px; width:8px; height:8px; border:2px solid #111; border-bottom:0; border-radius:8px 8px 0 0; transform:translateX(-50%) }
+.status-icons .bat { width: 24px; height: 11px; border: 1.5px solid #111; border-radius: 3px; position: relative; padding: 1px }
+.status-icons .bat::after { content:""; position:absolute; right:-4px; top:2px; width:2px; height:5px; background:#111; border-radius:0 1px 1px 0 }
+.status-icons .bat i { display:block; height:100%; width:72%; background:#111; border-radius:1px }
+.app { flex: 1; min-height: 0; position: relative; overflow: hidden }
+.page { position: absolute; inset: 0; display: flex; flex-direction: column; background: #fff }
+.scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none }
+.scroll::-webkit-scrollbar { display: none }
+
+.nav { height: 48px; flex: none; display: flex; align-items: center; padding: 0 10px; gap: 4px }
+.nav b { flex: 1; text-align: center; font-size: 17px; font-weight: 650 }
+.nav .icon, .icon-btn { width: 36px; height: 36px; border: 0; background: transparent; font-size: 24px; color: #222; display: grid; place-items: center; line-height: 1 }
+.nav .draft-btn { width: auto; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: #f2f3f5; color: #555; font-size: 12px }
+.nav .link { width: auto; border: 0; background: transparent; color: var(--blue-deep); font-size: 15px; font-weight: 600; padding: 0 8px }
+.nav-actions { display: flex; align-items: center; gap: 4px; margin-left: auto }
+.blue-btn { height: 44px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #6aa8f8, var(--blue-deep)); color: #fff; padding: 0 22px; font-weight: 650; font-size: 16px; box-shadow: 0 6px 16px #5b9cf533 }
+.blue-btn:disabled { background: #d7dbe2; box-shadow: none }
+.blue-btn.block { width: 100% }
+.blue-btn.pill { border-radius: 22px; height: 48px }
+.text-btn { border: 0; background: transparent; color: #888; height: 34px; padding: 0 8px }
+.ghost-btn { height: 34px; border: 1px solid #e6e6e6; border-radius: 17px; background: #fff; padding: 0 14px; font-size: 13px }
+.foot { margin-top: auto; padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); flex: none; background: linear-gradient(180deg, #ffffff00, #fff 28%) }
+.publish-bar { margin-top: auto; height: 68px; border-top: 1px solid #f3f3f3; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 16px; flex: none }
+
+.kind-bar { height: 48px; flex: none; display: flex; align-items: center; padding: 0 10px; position: relative }
+.kind-bar > button { width: 36px; height: 36px; border: 0; background: transparent; font-size: 24px; z-index: 1; color: #222 }
+.seg { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; height: 34px; padding: 3px; border-radius: 17px; background: var(--seg); min-width: 188px }
+.seg button { flex: 1; height: 28px; border: 0; border-radius: 14px; background: transparent; color: #fff; padding: 0 14px; font-size: 13px; font-weight: 550; white-space: nowrap }
+.seg button.on { background: #fff; color: var(--blue-deep); font-weight: 650; box-shadow: 0 1px 4px #00000014 }
+
+.home-hero { padding: 8px 16px 16px }
+.home-hero .banner { border-radius: 16px; padding: 18px 16px; background: linear-gradient(120deg, #e8f1ff, #f7f9ff 55%, #eef4ff); position: relative; overflow: hidden }
+.home-hero strong { display: block; font-size: 20px }
+.home-hero small { display: block; margin-top: 6px; color: #6f86ad; font-size: 12px }
+.section-title { margin: 8px 16px; font-size: 14px; font-weight: 750 }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px }
+.mode-card { border: 0; border-radius: 14px; background: #fff; box-shadow: 0 4px 16px #1a2a4410; padding: 12px; text-align: left; display: flex; flex-direction: column; gap: 8px; min-height: 148px }
+.mode-card em { font-style: normal; font-size: 14px; font-weight: 650; text-align: center }
+.shot { flex: 1; border-radius: 8px; overflow: hidden; background: #f4f5f7; min-height: 88px }
+.shot.wx { background: #ededed; display: flex; flex-direction: column }
+.shot.wx .bar { height: 18px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; border-bottom: 1px solid #e3e3e3; position: relative }
+.shot.wx .bar i { position: absolute; left: 6px; width: 5px; height: 5px; border-left: 1.5px solid #222; border-bottom: 1.5px solid #222; transform: rotate(45deg) }
+.shot.wx .body { flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px }
+.shot.wx .row { display: flex; gap: 3px }.shot.wx .row.me { justify-content: flex-end }
+.shot.wx .av { width: 12px; height: 12px; border-radius: 2px; background: #d5deea; flex: none }
+.shot.wx .row.me .av { background: #f2c7a4 }
+.shot.wx .bub { max-width: 70%; background: #fff; border-radius: 3px; padding: 3px 4px; font-size: 7px }
+.shot.wx .row.me .bub { background: #95ec69 }
+.shot.mm { padding: 0; position: relative }
+.shot.mm .cover { height: 36px; background: linear-gradient(135deg, #6f97cc, #d5e4f5) }
+.shot.mm .cover i { position: absolute; right: 8px; top: 24px; width: 18px; height: 18px; border: 1px solid #fff; border-radius: 3px; background: #f0d0b0 }
+.shot.mm .post { display: flex; gap: 4px; padding: 14px 6px 6px }
+.shot.mm b { color: #576b95; font-size: 8px }
+.shot.mm .t { display: block; height: 4px; border-radius: 2px; background: #ececec; margin-top: 3px }
+.shot.mm .t.s { width: 60% }
+.shot.fb .bar { height: 18px; background: #f2c755; color: #6d5318; font-size: 9px; font-weight: 700; display: grid; place-items: center }
+.shot.fb .title { font-size: 9px; font-weight: 700; padding: 5px 6px 0 }
+.shot.fb .op { display: flex; gap: 3px; align-items: center; padding: 4px 6px; font-size: 7px }
+.shot.fb .av { width: 12px; height: 12px; border-radius: 50%; background: #f0d0b0 }
+.shot.fb .t { display: block; height: 4px; margin: 0 6px 3px; border-radius: 2px; background: #eee }
+
+.field { display: block; padding: 10px 20px 6px }
+.field > span { display: block; font-size: 13px; font-weight: 550; color: var(--label); margin-bottom: 8px; letter-spacing: .2px }
+.field > span small { color: #aaa; font-weight: 400; margin-left: 6px }
+.field input, .field textarea { width: 100%; border: 1px solid var(--field-line); background: var(--field); border-radius: 12px; padding: 12px 14px; font-size: 14px }
+.field textarea { min-height: 72px; resize: vertical }
+.field input.nick { border-radius: 12px; color: #333 }
+.field input.nick::placeholder { color: #b7bdc8 }
+.field .counter { display: none }
+.cast-head { display: flex; align-items: baseline; gap: 8px; padding: 14px 20px 8px; flex-wrap: wrap }
+.cast-head b { font-size: 13px; font-weight: 650; color: var(--label) }
+.cast-head .hint { color: #b0b4bc; font-size: 12px; font-weight: 400 }
+.cast-head .added { margin-left: auto; color: var(--blue-deep); font-size: 12px }
+
+.role-row { display: flex; gap: 12px; padding: 4px 20px 16px; overflow-x: auto; scrollbar-width: none }
+.role-row::-webkit-scrollbar { display: none }
+.slot-item { width: 72px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative }
+.slot { width: 72px; height: 72px; border: 0; border-radius: 14px; background: #f3f5f8; position: relative; padding: 0; display: grid; place-items: center; overflow: visible }
+.slot.create { border: 1.5px dashed #c5d3e6; background: #fafbfd; color: var(--blue-deep); font-size: 28px; font-weight: 300 }
+.slot.on { box-shadow: inset 0 0 0 2px var(--blue) }
+.slot.on.me { box-shadow: inset 0 0 0 2px var(--blue-deep) }
+.slot.on.other { box-shadow: inset 0 0 0 2px var(--gold) }
+.slot .face { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 18px; color: #445 }
+.slot-name { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #888; text-align: center }
+.who-btn { height: 20px; border: 0; border-radius: 10px; padding: 0 8px; font-size: 10px; line-height: 20px }
+.who-btn.me { background: var(--blue-soft); color: var(--blue-deep) }
+.who-btn.set { background: #fff4d6; color: #b8860b }
+.del-x { position: absolute; right: -5px; top: -5px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: #c8cdd5; color: #fff; font-size: 11px; line-height: 18px; padding: 0; z-index: 2 }
+.stepper { display: flex; align-items: center; gap: 10px; margin-top: 2px }
+.stepper button { width: 36px; height: 36px; border: 1px solid var(--field-line); border-radius: 10px; background: #fff; font-size: 20px; color: var(--blue-deep); line-height: 1 }
+.stepper input { flex: 1; height: 40px; border: 1px solid var(--field-line); background: var(--field); border-radius: 12px; text-align: center; font-size: 16px; font-weight: 600 }
+
+.role-search { display: flex; align-items: center; gap: 8px; margin: 0 16px 10px; position: relative }
+.role-search .mag { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; opacity: .45; pointer-events: none; background: no-repeat center / contain;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") }
+.role-search input { flex: 1; min-width: 0; height: 36px; border: 0; border-radius: 18px; background: #f2f3f5; padding: 0 12px 0 34px; font-size: 13px }
+.role-search input::placeholder { color: #b0b4bc }
+.role-search button { flex: none; height: 36px; border: 0; border-radius: 18px; background: var(--blue-deep); color: #fff; padding: 0 14px; font-size: 13px; font-weight: 600 }
+.setup-search { margin: 4px 20px 6px }
+.setup-search input { cursor: pointer }
+
+.shade { position: absolute; inset: 0; background: rgba(20,24,32,.36); z-index: 30; display: flex; align-items: flex-end }
+.sheet { width: 100%; background: #fff; border-radius: 22px 22px 0 0; max-height: 82%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 -8px 32px #00000018 }
+.sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: #e2e4e8; margin: 8px auto 0; flex: none }
+.sheet-head { display: flex; align-items: center; gap: 8px; padding: 10px 16px 8px; flex: none }
+.sheet-head h2 { margin: 0; flex: 1; font-size: 15px; font-weight: 650 }
+.sheet-head .link { border: 0; background: transparent; color: var(--blue-deep); font-size: 13px; padding: 0 4px }
+.sheet-head button.close { border: 0; background: transparent; color: #c0c4cc; font-size: 22px; width: 32px; height: 32px }
+.sheet-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 14px 12px }
+.sheet-lib { display: flex; align-items: baseline; gap: 6px; padding: 2px 2px 10px; font-size: 12px; color: #b0b4bc }
+.sheet-lib b { color: #555; font-size: 13px; font-weight: 650 }
+.sheet-lib .mgr { margin-left: auto; color: var(--blue-deep); border: 0; background: transparent; font-size: 12px }
+.sheet-foot { flex: none; border-top: 1px solid #f2f3f5; padding: 10px 16px 16px; background: #fff }
+.added-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; min-height: 36px }
+.added-row > span { font-size: 12px; color: #888; flex: none }
+.added-avs { display: flex; gap: 6px; overflow: auto; flex: 1; scrollbar-width: none }
+.added-avs::-webkit-scrollbar { display: none }
+.added-avs i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; flex: none }
+.sheet-actions { display: flex; gap: 10px }
+.sheet-actions .cancel { flex: 0 0 96px; height: 44px; border: 0; border-radius: 12px; background: #f2f3f5; color: #666; font-weight: 600 }
+.sheet-actions .ok { flex: 1; height: 44px; border: 0; border-radius: 12px; background: var(--blue-deep); color: #fff; font-weight: 650; font-size: 15px }
+.role-pager { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none }
+.role-pager::-webkit-scrollbar { display: none }
+.role-page { flex: none; width: 100%; scroll-snap-align: start; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px 6px; padding: 4px 0 10px; min-height: 220px }
+.pick { border: 0; background: transparent; padding: 0; text-align: center; font-size: 11px; color: #666; position: relative }
+.pick i { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 5px; background: #e8eef8; color: #445; font-style: normal; font-weight: 700; border: 2.5px solid transparent; font-size: 16px }
+.pick.create i { border: 1.5px dashed #b8c7e0; background: #fff; color: var(--blue-deep); font-size: 22px; font-weight: 400 }
+.pick.on i { border-color: var(--blue-deep); background: var(--blue-soft); color: var(--blue-deep) }
+.pick span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.role-nav { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 2px 28px 6px }
+.role-track { position: relative; width: 100%; height: 3px; border-radius: 2px; background: #e6e8ed }
+.role-track i { position: absolute; top: 0; left: 0; height: 100%; border-radius: 2px; background: var(--blue-deep) }
+.role-dots { display: flex; gap: 6px }
+.role-dots button { width: 6px; height: 6px; border: 0; border-radius: 3px; background: #d0d4db; padding: 0 }
+.role-dots button.on { width: 14px; background: var(--blue-deep) }
+.filters { display: none }
+.empty-badge { margin: 36px auto; width: fit-content; padding: 10px 18px; border-radius: 999px; background: #eceff3; color: #888; font-size: 13px }
+
+.dialog { position: absolute; inset: 0; background: rgba(0,0,0,.35); z-index: 40; display: grid; place-items: center; padding: 24px }
+.dialog-card { width: 100%; max-width: 300px; background: #fff; border-radius: 16px; padding: 18px 16px 14px; text-align: center; box-shadow: 0 12px 40px #00000022 }
+.dialog-card h3 { margin: 0 0 8px; font-size: 16px }
+.dialog-card p { margin: 0 0 14px; color: #888; font-size: 13px; line-height: 1.5 }
+.dialog-actions { display: flex; gap: 8px }
+.dialog-actions button { flex: 1; height: 38px; border-radius: 12px; border: 0; font-weight: 650 }
+.dialog-actions .cancel { background: #f3f4f6; color: #555 }
+.dialog-actions .ok { background: var(--blue-deep); color: #fff }
+
+.form-grid { display: grid; gap: 12px }
+.form-grid label { display: block; font-size: 12px; color: #888; text-align: left }
+.form-grid input, .form-grid select, .form-grid textarea { width: 100%; margin-top: 6px; border: 1px solid #e8e8e8; border-radius: 12px; padding: 11px 12px; font-size: 14px; background: #fafafa }
+.edit-avatar { width: 84px; height: 84px; border-radius: 50%; margin: 8px auto 4px; display: grid; place-items: center; font-size: 28px; font-weight: 700; font-style: normal; color: #445 }
+.bubble-swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px }
+.bubble-swatches button { height: 28px; border-radius: 8px; border: 2px solid transparent; padding: 0 }
+.bubble-swatches button.on { border-color: var(--blue-deep) }
+.gender { display: flex; gap: 8px; margin-top: 6px }
+.gender button { flex: 1; height: 34px; border: 1px solid #e6e6e6; border-radius: 10px; background: #fff }
+.gender button.on { border-color: var(--blue); color: var(--blue); background: var(--blue-soft) }
+
+.chat { flex: 1; min-height: 0; overflow: auto; background: var(--wx); padding: 12px 12px 8px; scrollbar-width: none }
+.chat::-webkit-scrollbar { display: none }
+.msg { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0 }
+.msg.me { flex-direction: row-reverse }
+.msg.system { justify-content: center; color: #aaa; font-size: 11px }
+.wx-ava { width: 40px; height: 40px; border-radius: 6px; background: #d5deea; color: #445; display: grid; place-items: center; font-size: 15px; font-style: normal; flex: none; font-weight: 700 }
+.msg.me .wx-ava { background: #f2c7a4; color: #6a4630 }
+.bubble { max-width: 68%; background: #fff; border-radius: 6px; padding: 9px 11px; margin: 0; font-size: 15px; line-height: 1.45; word-break: break-word; position: relative }
+.bubble.me { background: var(--me) }
+.bubble.card { padding: 0; overflow: hidden; min-width: 160px }
+.bubble .card-main { padding: 10px; background: #fa9d3b; color: #fff }
+.bubble .card-foot { padding: 4px 10px; font-size: 10px; color: #999; background: #fff }
+.composer { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: #f7f7f7; border-top: 1px solid #ebebeb; flex: none }
+.composer input { flex: 1; height: 36px; border: 0; background: #fff; border-radius: 6px; padding: 0 12px; font-size: 15px }
+.composer .plus { width: 32px; height: 32px; border: 1.5px solid #b0b0b0; border-radius: 50%; background: transparent; font-size: 22px; color: #555; line-height: 1; display: grid; place-items: center; padding: 0 }
+.composer .send-mini { height: 32px; border: 0; border-radius: 6px; background: var(--blue-deep); color: #fff; padding: 0 12px; font-size: 13px; font-weight: 650 }
+.senders { display: flex; gap: 10px; padding: 8px 12px 4px; background: #f7f7f7; overflow: auto; flex: none }
+.sender { border: 2px solid transparent; padding: 0; border-radius: 8px; background: transparent }
+.sender.on { border-color: var(--blue-deep) }
+.sender .wx-ava { width: 30px; height: 30px; font-size: 12px }
+.tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 10px; padding: 16px 18px 22px; background: #f7f7f7; border-top: 1px solid #ebebeb; flex: none }
+.tools button { border: 0; background: transparent; font-size: 11px; color: #666 }
+.tools i { width: 56px; height: 56px; border-radius: 14px; background: #fff; display: grid; place-items: center; margin: 0 auto 6px; font-style: normal; font-size: 15px; color: #444; box-shadow: 0 1px 0 #00000008 }
+
+.moment-cover { height: 120px; background: linear-gradient(145deg, #8898a9, #d8b8c9); position: relative; margin: 0 0 36px }
+.moment-profile { position: absolute; right: 14px; bottom: -22px; display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700 }
+.moment-post { display: flex; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line) }
+.moment-body { flex: 1; min-width: 0 }
+.social-name { color: #576b95; font-size: 14px; font-weight: 700 }
+.social-text { margin: 6px 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px }
+.photo-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; background: #eee }
+.social-actions { background: #f3f4f5; border-radius: 4px; margin-top: 8px; padding: 8px; font-size: 12px; line-height: 1.65 }
+.social-actions b { color: #576b95 }
+.comment-line { border-top: 1px solid #e3e5e7; margin-top: 4px; padding-top: 4px }
+.compose-card { margin: 12px 16px; background: #f7f8fa; border-radius: 12px; padding: 12px }
+.compose-card textarea { width: 100%; min-height: 70px; border: 0; background: transparent; resize: vertical; font-size: 14px }
+
+.tieba-bar { height: 36px; background: #f2c755; display: flex; align-items: center; justify-content: center; color: #6d5318; font-weight: 750; position: relative }
+.tieba-bar input { border: 0; background: transparent; text-align: center; font-weight: 750; width: 160px; color: #6d5318 }
+.tieba-title, .tieba-body { width: calc(100% - 24px); margin: 8px 12px; border: 0; background: #f7f7f7; border-radius: 8px; padding: 10px; font-size: 14px }
+.tieba-body { min-height: 80px; resize: vertical }
+.floor-card { padding: 10px 12px; border-top: 8px solid #f6f6f6; background: #fff }
+.floor-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #917036 }
+.lz { background: var(--danger); color: #fff; border-radius: 3px; font-size: 10px; padding: 1px 4px; margin-left: 4px }
+.quote { margin: 6px 0; padding: 6px 8px; background: #f6f6f6; border-radius: 6px; color: #888; font-size: 12px }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; margin: 8px 16px; font-size: 13px }
+.toggle-row input { width: 40px; height: 22px; accent-color: var(--blue) }
+
+.done { padding: 24px 16px; text-align: center }
+.done-mark { width: 52px; height: 52px; border-radius: 50%; background: var(--blue-soft); color: var(--blue-deep); display: grid; place-items: center; margin: 0 auto 10px; font-size: 26px }
+.done h2 { margin: 0; font-size: 20px }
+.done p { margin: 6px 0 16px; color: #999; font-size: 12px }
+.setting-card { background: #f7f8fa; border-radius: 14px; padding: 14px; margin: 10px 0; text-align: left }
+.setting-card label { font-size: 12px; color: #888 }
+.setting-card input, .setting-card select { width: 100%; border: 0; background: transparent; border-bottom: 1px solid #e8e8e8; padding: 8px 0; font-size: 14px }
+.done-actions { display: grid; gap: 10px; margin-top: 12px }
+.done-actions .ghost-btn { height: 44px; border-radius: 12px; border: 1.5px solid var(--blue-deep); color: var(--blue-deep); font-weight: 650 }
+.ratio { display: flex; gap: 8px; margin-top: 8px }
+.ratio button { flex: 1; height: 34px; border: 1px solid #eee; background: #fff; border-radius: 8px }
+.ratio button.on { border-color: var(--blue-deep); color: var(--blue-deep); background: var(--blue-soft) }
+.preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 16px 18px }
+.preview-grid img { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff }
+.draft-list { padding: 8px 16px 20px; display: grid; gap: 10px }
+.draft-card { display: flex; gap: 10px; background: #f7f8fa; border-radius: 12px; padding: 10px; border: 0; text-align: left; width: 100% }
+.draft-thumb { width: 72px; height: 96px; border-radius: 8px; background: #ededed; object-fit: cover; flex: none }
+.draft-card b { display: block; font-size: 14px }
+.draft-card small { color: #999; font-size: 11px }
+
+.countdown { position: absolute; inset: 0; background: #000; z-index: 50; color: #fff; display: grid; place-items: center; font-size: 64px; font-weight: 800 }
+.toast { position: absolute; left: 50%; bottom: 88px; transform: translateX(-50%); background: #242126e8; color: #fff; border-radius: 18px; padding: 8px 14px; font-size: 12px; opacity: 0; pointer-events: none; transition: .2s; z-index: 60; white-space: nowrap; max-width: 86%; overflow: hidden; text-overflow: ellipsis }
+.toast.show { opacity: 1 }
+
+@media (max-width: 700px) {
+  body { padding: 12px }
+  .side { width: 100%; max-width: 390px }
+}
+</style>
+</head>
+<body>
+<aside class="side">
+  <h1>捡手机模式</h1>
+  <p>社区二期创作能力：聊天记录 / 朋友圈 / 论坛体，按需求文档交互，视觉对齐 Figma。</p>
+  <a href="index.html">返回短篇社区</a>
+  <a href="xhs-literature.html">对照：换手机文学生成器</a>
+  <p class="hint">本地访问：http://127.0.0.1:8765/pickup-phone.html</p>
+</aside>
+
+<div class="device">
+  <main class="screen">
+    <div class="island" aria-hidden="true"></div>
+    <div class="status">
+      <span class="status-left"><span id="clock">14:07</span><i class="status-silent" title="静音"></i></span>
+      <span class="status-icons"><span class="sig" aria-hidden="true"><b></b><b></b><b></b><b></b></span><span class="wifi" aria-hidden="true"></span><span class="bat" aria-hidden="true"><i></i></span></span>
+    </div>
+    <div class="app" id="app"></div>
+    <div class="toast" id="toast"></div>
+  </main>
+</div>
+
+<script>
+const COLORS = ["#6b8cff","#e6aa7b","#74b6dc","#73c9bd","#a27ab4","#f0a07a","#7e9b76","#c77daa"];
+const BOOKS = [
+  { id:"ks", title:"开书", updated:20261102, roles:[{id:"hb",name:"话本小说",tag:"叙事"},{id:"qk",name:"清客",tag:"温和"},{id:"xm",name:"小满",tag:"甜妹"}] },
+  { id:"yh", title:"夜航船", updated:20261020, roles:[{id:"dz",name:"读者",tag:"围观"},{id:"cn",name:"船娘",tag:"神秘"},{id:"lf",name:"老帆",tag:"沉稳"}] },
+  { id:"sj", title:"市井长卷", updated:20260902, roles:[{id:"ss",name:"说书人",tag:"讲述"},{id:"nv",name:"女主角",tag:"坚韧"},{id:"ns",name:"书生",tag:"清冷"}] },
+  { id:"hp", title:"哈利波特", updated:20260115, roles:["哈利·波特","赫敏·格兰杰","罗恩·韦斯莱","斯内普","马尔福","金妮","卢娜","纳威"].map((n,i)=>({id:"hp"+i,name:n,tag:"魔法"})) }
+];
+
+const library = [];
+const touch = {};
+function seedLibrary() {
+  BOOKS.slice().sort((a,b)=>b.updated-a.updated).forEach(book => {
+    book.roles.forEach(r => {
+      if (!library.some(x => x.id === r.id)) {
+        library.push({ ...r, color: COLORS[library.length % COLORS.length], book: book.title, custom: false });
+        touch[r.id] = book.updated * 10 + library.length;
+      }
+    });
+  });
+  for (let i = 1; library.length < 75; i++) {
+    const id = "pad" + i;
+    library.push({ id, name: "路人" + String(i).padStart(2,"0"), tag: "路人", color: COLORS[i % COLORS.length], book: "角色库", custom: false });
+    touch[id] = 1000 - i;
+  }
+}
+seedLibrary();
+
+const state = {
+  view: "home",
+  mode: "", // chat | moments | forum
+  chatKind: "single", // single | group
+  nickname: "",
+  groupSize: "",
+  meId: "",
+  cast: [],
+  rolePage: 0,
+  roleQuery: "",
+  searched: null,
+  recentMode: false,
+  sheet: null, // role | create | dialog
+  dialog: null,
+  editRoleId: null,
+  createForm: { name: "", tag: "", gender: "未设置", bubble: "#95ec69" },
+  activeSender: "",
+  tools: false,
+  messages: [],
+  moment: { text: "", images: [], likes: [], comments: [] },
+  forum: { name: "话本小说吧", title: "", body: "", showAvatar: true, showId: true, showTime: true, floors: [], replyTo: null },
+  storyName: "",
+  ratio: "3:4",
+  recordSpeed: "1x",
+  recordMode: "滑动播放",
+  generated: [],
+  drafts: JSON.parse(localStorage.getItem("pickup_drafts") || "[]"),
+  unnamedSeq: Number(localStorage.getItem("pickup_unnamed") || "1"),
+  selectRange: false,
+  selectedMsgIds: [],
+  countdown: null
+};
+
+const app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const person = id => library.find(x => x.id === id) || { id, name: "未知", color: "#ccc", tag: "" };
+const initial = name => esc(String(name || "?").slice(0, 1));
+const len = s => Array.from(String(s || "")).length;
+function toast(text) {
+  const el = document.getElementById("toast");
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 1600);
+}
+function avatar(id, cls = "wx-ava") {
+  const p = person(id);
+  return `<i class="${cls}" style="background:${p.color}33;color:${p.color}">${initial(p.name)}</i>`;
+}
+function maxCast() {
+  return state.mode === "chat" && state.chatKind === "single" ? 2 : state.mode === "chat" ? 20 : 20;
+}
+function nickLimit() {
+  return state.chatKind === "group" ? 14 : 32;
+}
+function ensureMe() {
+  if (!state.cast.length) { state.meId = ""; return; }
+  if (!state.cast.includes(state.meId)) state.meId = state.cast[0];
+  // 【我】始终第一位
+  state.cast = [state.meId, ...state.cast.filter(id => id !== state.meId)];
+}
+function openDialog(title, message, actions) {
+  state.sheet = "dialog";
+  state.dialog = { title, message, actions };
+  render();
+}
+function closeSheet() {
+  state.sheet = null;
+  state.dialog = null;
+  state.searched = null;
+  state.recentMode = false;
+  state.editRoleId = null;
+}
+
+function recentRoles() {
+  return library.slice().sort((a,b) => (touch[b.id]||0) - (touch[a.id]||0));
+}
+function defaultRoles() {
+  // 默认展示：最近更新的 3 本书角色
+  const ids = [];
+  BOOKS.slice().sort((a,b)=>b.updated-a.updated).slice(0,3).forEach(book => {
+    book.roles.forEach(r => { if (!ids.includes(r.id)) ids.push(r.id); });
+  });
+  return ids.map(person);
+}
+
+function rolePages(list) {
+  const pages = [];
+  // 第一格创建角色
+  const first = [{ create: true }, ...list.slice(0, 14)];
+  pages.push(first);
+  for (let i = 14; i < list.length && pages.length < 5; i += 15) pages.push(list.slice(i, i + 15));
+  return pages;
+}
+
+function renderHome() {
+  return `<section class="page">
+    <header class="nav"><button class="draft-btn" data-act="drafts">草稿箱 · ${state.drafts.length}</button><b>捡手机模式</b><span style="width:72px"></span></header>
+    <div class="scroll">
+      <div class="home-hero"><div class="banner"><strong>捡到一部手机</strong><small>用聊天记录、朋友圈、论坛体讲故事</small></div></div>
+      <div class="section-title">选择创作类型</div>
+      <div class="mode-grid">
+        <button class="mode-card" data-act="pick-chat">
+          <span class="shot wx"><span class="bar"><i></i>对方</span><span class="body"><span class="row"><i class="av"></i><span class="bub">你醒了吗</span></span><span class="row me"><span class="bub">刚醒</span><i class="av"></i></span></span></span>
+          <em>聊天记录</em>
+        </button>
+        <button class="mode-card" data-act="pick-moments">
+          <span class="shot mm"><span class="cover"><i></i></span><span class="post"><i class="av" style="width:12px;height:12px;border-radius:3px;background:#d8dee8;display:block"></i><span><b>发帖人</b><i class="t"></i><i class="t s"></i></span></span></span>
+          <em>朋友圈</em>
+        </button>
+        <button class="mode-card" data-act="pick-forum">
+          <span class="shot fb"><span class="bar">话本小说吧</span><span class="title">今夜开篇</span><span class="op"><i class="av"></i><b>楼主</b></span><i class="t"></i><i class="t"></i></span>
+          <em>论坛体</em>
+        </button>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderSetup() {
+  const forum = state.mode === "forum";
+  const moments = state.mode === "moments";
+  const title = forum ? "论坛体设置" : moments ? "朋友圈设置" : "聊天设置";
+  ensureMe();
+  const nickMax = nickLimit();
+  const castLimit = maxCast();
+  const kindBar = state.mode === "chat"
+    ? `<header class="kind-bar"><button data-act="back">‹</button><div class="seg"><button class="${state.chatKind==="single"?"on":""}" data-kind="single">单人聊天</button><button class="${state.chatKind==="group"?"on":""}" data-kind="group">群聊</button></div></header>`
+    : `<header class="nav"><button class="icon" data-act="back">‹</button><b>${title}</b><span style="width:36px"></span></header>`;
+
+  const nickPh = state.mode === "chat"
+    ? (state.chatKind === "group" ? "群名称，限14字，制作时可修改" : "对方的置顶名称，限32字，制作时可修改")
+    : (forum ? "话本小说吧" : "可选");
+  const nickField = state.mode === "chat"
+    ? `<label class="field"><span>设置昵称</span>
+        <input class="nick" id="nickInput" maxlength="${nickMax}" value="${esc(state.nickname)}" placeholder="${nickPh}">
+        <span class="counter">${len(state.nickname)}/${nickMax}</span></label>
+       ${state.chatKind==="group"?`<label class="field"><span>设置群人数 ≤500</span><div class="stepper"><button type="button" data-act="size-dec">−</button><input id="groupSize" inputmode="numeric" value="${esc(state.groupSize||"")}" placeholder="0"><button type="button" data-act="size-inc">+</button></div></label>`:""}
+       <div class="role-search setup-search"><i class="mag"></i><input id="quickSearch" readonly placeholder="输入书籍或角色名进行搜索" value="${esc(state.roleQuery)}" data-act="open-roles"><button type="button" data-act="open-roles">搜索</button></div>`
+    : `<label class="field"><span>${forum?"吧名":"朋友圈封面名"}</span><input id="extraName" value="${esc(forum?state.forum.name:state.nickname)}" placeholder="${nickPh}"></label>`;
+
+  const castHtml = state.cast.map(id => {
+    const p = person(id);
+    const me = id === state.meId;
+    return `<div class="slot-item">
+      <button class="slot on ${me?"me":"other"}" data-cast="${id}" data-long="${id}" style="background:${p.color}18"><i class="face" style="background:${p.color}33;color:${p.color}">${initial(p.name)}</i></button>
+      <button class="del-x" data-del="${id}">×</button>
+      <span class="slot-name">${esc(p.name)}</span>
+      <button class="who-btn ${me?"me":"set"}" data-set-me="${id}" ${me?"disabled":""}>${me?"我":"设为我"}</button>
+    </div>`;
+  }).join("");
+
+  const startLabel = state.mode === "chat" ? "开始聊天" : "开始创作";
+  return `<section class="page">${kindBar}
+    <div class="scroll">
+      ${nickField}
+      <div class="cast-head"><b>${forum?"选择楼主与互动角色":moments?"选择发帖人与互动角色":"选择角色"}</b><span class="hint">长按角色可编辑头像或气泡颜色</span><span class="added" data-act="open-roles">已添加 ${state.cast.length}/${castLimit}</span></div>
+      <div class="role-row">
+        <div class="slot-item"><button class="slot create" data-act="open-roles">+</button><span class="slot-name">添加</span></div>
+        ${castHtml}
+      </div>
+    </div>
+    <div class="foot"><button class="blue-btn block pill" data-act="start">${startLabel}</button></div>
+    ${sheetHtml()}
+  </section>`;
+}
+
+function sheetHtml() {
+  if (state.sheet === "dialog" && state.dialog) {
+    const d = state.dialog;
+    return `<div class="dialog"><div class="dialog-card"><h3>${esc(d.title)}</h3><p>${esc(d.message)}</p><div class="dialog-actions">
+      ${(d.actions||[{label:"知道了",act:"close-dialog"}]).map(a=>`<button class="${a.primary?"ok":"cancel"}" data-act="${a.act||"close-dialog"}">${esc(a.label)}</button>`).join("")}
+    </div></div></div>`;
+  }
+  if (state.sheet === "create") {
+    const f = state.createForm;
+    const editing = !!state.editRoleId;
+    const editP = editing ? person(state.editRoleId) : null;
+    const swatches = ["#95ec69","#ffffff","#a0e9ff","#ffd6e7","#ffe08a","#d5c7ff"];
+    const cur = f.bubble || swatches[0];
+    return `<div class="shade"><div class="sheet" style="max-height:76%"><div class="sheet-handle"></div><div class="sheet-head"><h2>${editing?"编辑角色":"创建角色"}</h2><button class="close" data-act="close-sheet">×</button></div>
+      <div class="sheet-body"><div class="form-grid">
+        <i class="edit-avatar" style="background:${(editP?.color||COLORS[0])}33;color:${editP?.color||COLORS[0]}">${initial(f.name||"角")}</i>
+        <label>昵称<input id="createName" maxlength="20" value="${esc(f.name)}" placeholder="请输入名称"></label>
+        <label>标签<input id="createTag" maxlength="12" value="${esc(f.tag)}" placeholder="例如：清冷少年"></label>
+        <label>气泡颜色<div class="bubble-swatches">${swatches.map(c=>`<button type="button" class="${cur===c?"on":""}" data-bubble="${c}" style="background:${c};${c==="#ffffff"?"border-color:#ddd":""}"></button>`).join("")}</div></label>
+        <label>性别<div class="gender">${["男","女","未设置"].map(g=>`<button type="button" class="${f.gender===g?"on":""}" data-gender="${g}">${g}</button>`).join("")}</div></label>
+      </div>
+      <div style="margin-top:18px"><button class="blue-btn block" data-act="save-role">${editing?"保存角色":"创建并加入角色库"}</button></div>
+      </div></div></div>`;
+  }
+  if (state.sheet !== "role") return "";
+  const source = state.recentMode ? recentRoles() : (state.searched !== null
+    ? library.filter(r => r.name.includes(state.searched) || (r.tag||"").includes(state.searched) || (r.book||"").includes(state.searched))
+    : defaultRoles().concat(recentRoles().filter(r => !defaultRoles().some(d => d.id === r.id))));
+  const pages = rolePages(source.slice(0, 75));
+  if (state.rolePage >= pages.length) state.rolePage = Math.max(0, pages.length - 1);
+  const thumbW = pages.length ? Math.max(18, 100 / pages.length) : 100;
+  const thumbL = pages.length > 1 ? state.rolePage * (100 - thumbW) / (pages.length - 1) : 0;
+  const emptySearch = state.searched !== null && !source.length;
+  const libTitle = state.searched !== null ? "搜索结果" : (state.recentMode ? "最近使用" : "角色库");
+  return `<div class="shade"><div class="sheet"><div class="sheet-handle"></div>
+    <div class="sheet-body" style="padding-top:8px">
+      <div class="role-search" style="margin:0 0 8px"><i class="mag"></i><input id="panelSearch" placeholder="输入书籍或角色名进行搜索" value="${esc(state.roleQuery)}"><button data-act="panel-search">搜索</button></div>
+      <div class="sheet-lib"><b>${libTitle}</b><span>| 长按角色可编辑，单击选中或取消。</span>
+        ${state.searched!==null?`<button class="mgr" data-act="recent-roles">角色库 ›</button>`:`<button class="mgr" type="button">管理</button>`}
+      </div>
+      ${emptySearch?`<div class="empty-badge">未搜到该角色</div>`:`
+      <div class="role-pager" id="rolePager">${pages.map(page => `<div class="role-page">${page.map(item => {
+        if (item.create) return `<button class="pick create" data-act="open-create"><i>+</i><span>创建角色</span></button>`;
+        const on = state.cast.includes(item.id);
+        return `<button class="pick ${on?"on":""}" data-add="${item.id}" data-long="${item.id}"><i style="background:${item.color}33;color:${item.color}">${initial(item.name)}</i><span>${esc(item.name)}</span></button>`;
+      }).join("")}</div>`).join("")}</div>
+      <div class="role-nav"><div class="role-track"><i style="width:${thumbW}%;left:${thumbL}%"></i></div>
+        <div class="role-dots">${pages.map((_,i)=>`<button data-role-page="${i}" class="${i===state.rolePage?"on":""}"></button>`).join("")}</div></div>`}
+    </div>
+    <div class="sheet-foot">
+      <div class="added-row"><span>已添加（${state.cast.length}位）</span>
+        <div class="added-avs">${state.cast.map(id=>{const p=person(id);return `<i style="background:${p.color}33;color:${p.color}">${initial(p.name)}</i>`;}).join("")}</div>
+      </div>
+      <div class="sheet-actions"><button class="cancel" data-act="close-sheet">取消</button><button class="ok" data-act="close-sheet">添加角色</button></div>
+    </div>
+  </div></div>`;
+}
+
+function renderChat() {
+  ensureMe();
+  const title = state.nickname || (state.chatKind === "group" ? "群聊" : (person(state.cast.find(id => id !== state.meId) || state.meId).name));
+  const msgs = state.messages.map(m => {
+    if (m.type === "system" || m.type === "time") return `<div class="msg system" data-msg="${m.id}">${esc(m.text)}</div>`;
+    const me = m.sender === state.meId;
+    let body = esc(m.text || "");
+    if (m.type === "red" || m.type === "transfer") body = `<div class="card-main"><strong>¥${esc(m.amount||"8.88")}</strong><div>${esc(m.note|| (m.type==="red"?"恭喜发财":"转账给你"))}</div></div><div class="card-foot">${m.type==="red"?"红包":"转账"}</div>`;
+    if (m.type === "image") body = m.image ? `<img src="${esc(m.image)}" alt="图片" style="max-width:160px;border-radius:6px;display:block">` : "[图片]";
+    if (m.type === "voice") body = `🎤 ${esc(m.duration||"3")}″`;
+    if (m.type === "location") body = `📍 ${esc(m.text||"当前位置")}`;
+    const selected = state.selectRange && state.selectedMsgIds.includes(m.id);
+    const bub = person(m.sender).bubble;
+    const bubStyle = bub ? `background:${bub}` : "";
+    return `<div class="msg ${me?"me":""}" data-msg="${m.id}" style="${selected?"outline:2px solid var(--blue);outline-offset:2px;border-radius:8px":""}">${avatar(m.sender)}<div class="bubble ${me?"me":""} ${m.type==="red"||m.type==="transfer"?"card":""}" style="${bubStyle}">${body}</div></div>`;
+  }).join("");
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b contenteditable="true" id="liveNick" style="outline:none">${esc(title)}</b>
+      <span class="nav-actions"><button class="text-btn" data-act="toggle-range">${state.selectRange?"取消选取":"选取"}</button><button class="link" data-act="finish">完成</button></span></header>
+    <div class="chat" id="chatScroll">${msgs || '<div class="msg system">开始编织对话吧</div>'}</div>
+    <div class="senders">${state.cast.map(id => `<button class="sender ${state.activeSender===id?"on":""}" data-sender="${id}">${avatar(id)}</button>`).join("")}</div>
+    <div class="composer"><button class="plus" data-act="toggle-tools">＋</button><input id="msgInput" placeholder="以 ${esc(person(state.activeSender).name)} 的身份发言"><button class="send-mini" data-act="send-msg">发送</button></div>
+    ${state.tools?`<div class="tools">${[["voice","语音"],["image","图片"],["red","红包"],["transfer","转账"],["location","位置"],["time","时间"],["system","系统"],["call","通话"]].map(([k,n])=>`<button data-tool="${k}"><i>${n.slice(0,1)}</i>${n}</button>`).join("")}</div>`:""}
+    ${sheetHtml()}
+  </section>`;
+}
+
+function renderMoments() {
+  ensureMe();
+  const owner = state.meId;
+  const m = state.moment;
+  const likes = m.likes.map(id => person(id).name).join("、");
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>朋友圈</b><button class="link" data-act="finish">完成</button></header>
+    <div class="scroll">
+      <div class="compose-card"><textarea id="momentText" maxlength="500" placeholder="这一刻的想法…">${esc(m.text)}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px"><label class="ghost-btn" style="display:grid;place-items:center">上传图片<input id="momentImg" type="file" accept="image/*" multiple hidden></label>
+          <button class="ghost-btn" data-act="moment-like">点赞</button></div>
+      </div>
+      <div class="moment-cover"><div class="moment-profile">${esc(person(owner).name)}${avatar(owner)}</div></div>
+      <div class="moment-post">${avatar(owner)}<div class="moment-body">
+        <div class="social-name">${esc(person(owner).name)}</div>
+        <div class="social-text">${esc(m.text)||"…"}</div>
+        ${m.images.length?`<div class="photo-grid">${m.images.map(src=>`<img src="${esc(src)}" alt="">`).join("")}</div>`:""}
+        ${(likes||m.comments.length)?`<div class="social-actions">${likes?`<div><b>赞</b> ${esc(likes)}</div>`:""}
+          ${m.comments.map((c,i)=>`<div class="comment-line"><b>${esc(person(c.sender).name)}</b>${c.replyTo!=null?` 回复 <b>${esc(person(m.comments[c.replyTo]?.sender||owner).name)}</b>`:""}：${esc(c.text)}
+          <button class="text-btn" data-reply-c="${i}" style="float:right;height:auto;padding:0;color:#576b95">回复</button>
+          <button class="text-btn" data-del-c="${i}" style="float:right;height:auto;padding:0">删</button></div>`).join("")}
+        </div>`:""}
+      </div></div>
+    </div>
+    <div class="composer"><input id="momentComment" placeholder="写评论 / 二级评论"><button class="blue-btn" data-act="send-comment">发送</button></div>
+    <div class="senders">${state.cast.map(id=>`<button class="sender ${state.activeSender===id?"on":""}" data-sender="${id}">${avatar(id)}</button>`).join("")}</div>
+    ${sheetHtml()}
+  </section>`;
+}
+
+function renderForum() {
+  ensureMe();
+  const f = state.forum;
+  const owner = state.meId;
+  const reply = f.replyTo != null ? f.floors.find(x => x.id === f.replyTo) : null;
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>论坛体</b><button class="link" data-act="finish">完成</button></header>
+    <div class="scroll">
+      <div class="toggle-row"><span>显示互动头像</span><input type="checkbox" id="tgAvatar" ${f.showAvatar?"checked":""}></div>
+      <div class="toggle-row"><span>显示互动 ID</span><input type="checkbox" id="tgId" ${f.showId?"checked":""}></div>
+      <div class="toggle-row"><span>显示互动时间</span><input type="checkbox" id="tgTime" ${f.showTime?"checked":""}></div>
+      <div class="tieba-bar"><input id="barName" value="${esc(f.name)}"></div>
+      <input class="tieba-title" id="forumTitle" maxlength="40" value="${esc(f.title)}" placeholder="点击填写帖子标题…">
+      <div class="floor-meta" style="padding:0 12px">${f.showAvatar?avatar(owner):""}<span>${f.showId?`<b>${esc(person(owner).name)}</b>`:""}<span class="lz">楼主</span>${f.showTime?" · 刚刚":""}</span></div>
+      <textarea class="tieba-body" id="forumBody" placeholder="楼主正文…">${esc(f.body)}</textarea>
+      ${f.floors.map((floor, i) => {
+        const p = person(floor.sender);
+        const quoted = floor.replyTo != null ? f.floors.find(x => x.id === floor.replyTo) : null;
+        return `<article class="floor-card">
+          <div class="floor-meta">${f.showAvatar?avatar(floor.sender):""}<span>${f.showId?esc(p.name):""}${floor.sender===owner?'<span class="lz">楼主</span>':""}</span>
+            <span style="margin-left:auto;color:#bbb">${i+1}楼${f.showTime?" · 刚刚":""}
+              <button class="text-btn" data-reply-f="${floor.id}" style="height:auto;padding:0 4px">回复</button>
+              <button class="text-btn" data-del-f="${floor.id}" style="height:auto;padding:0 4px">删</button>
+            </span></div>
+          ${quoted?`<div class="quote">引用 ${esc(person(quoted.sender).name)}：${esc(quoted.text)}</div>`:""}
+          <p style="margin:6px 0;font-size:14px">${esc(floor.text)}</p>
+          ${floor.image?`<img src="${esc(floor.image)}" alt="" style="max-width:140px;border-radius:8px">`:""}
+        </article>`;
+      }).join("")}
+    </div>
+    ${reply?`<div style="padding:6px 12px;background:#fff7df;font-size:12px;color:#8a6a22;display:flex;justify-content:space-between">回复引用楼 · ${esc(person(reply.sender).name)}<button data-act="clear-reply">×</button></div>`:""}
+    <div class="composer"><label class="plus" style="display:grid;place-items:center;font-size:14px">图<input id="floorImg" type="file" accept="image/*" hidden></label><input id="floorInput" placeholder="+ 发楼 / 二级评论"><button class="blue-btn" data-act="send-floor">发送</button></div>
+    <div class="senders">${state.cast.map(id=>`<button class="sender ${state.activeSender===id?"on":""}" data-sender="${id}">${avatar(id)}</button>`).join("")}</div>
+    ${sheetHtml()}
+  </section>`;
+}
+
+function contentCount() {
+  if (state.mode === "chat") return state.messages.filter(m => m.type !== "system" && m.type !== "time").length;
+  if (state.mode === "moments") return 1 + state.moment.comments.length;
+  return 1 + state.forum.floors.length;
+}
+
+function renderFinish() {
+  const name = state.storyName;
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>创作完成</b><span style="width:36px"></span></header>
+    <div class="scroll done">
+      <div class="done-mark">✓</div><h2>创作完成</h2>
+      <p>共 ${contentCount()} 条内容 · ${state.cast.length} 个角色</p>
+      <div class="setting-card"><label>故事名称（限24字，非必填）</label>
+        <input id="storyName" maxlength="24" value="${esc(name)}" placeholder="未填则自动命名为未命名故事${state.unnamedSeq}">
+        <span class="counter" style="display:block;text-align:right;color:#bbb;font-size:11px;margin-top:4px">${len(name)}/24</span>
+      </div>
+      <div class="setting-card"><label>生成图片尺寸</label>
+        <div class="ratio">${["3:4","1:1","9:16"].map(r=>`<button data-ratio="${r}" class="${state.ratio===r?"on":""}">${r}</button>`).join("")}</div>
+      </div>
+      <div class="done-actions">
+        <button class="blue-btn block" data-act="gen-images">生成图片</button>
+        <button class="ghost-btn" style="width:100%" data-act="open-record">做成录屏</button>
+        <button class="ghost-btn" style="width:100%" data-act="save-draft">存草稿</button>
+        <button class="text-btn" data-act="continue-edit">继续编辑</button>
+      </div>
+    </div>
+    ${sheetHtml()}
+  </section>`;
+}
+
+function renderPreview() {
+  const over = state.generated.length > 18;
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>出片（${Math.min(state.generated.length,18)}张）</b><span style="width:36px"></span></header>
+    <div class="scroll"><div class="preview-grid">${state.generated.slice(0,18).map((src,i)=>`<img src="${src}" alt="第${i+1}张">`).join("")}</div></div>
+    <div class="publish-bar"><button class="text-btn" data-act="save-album">保存到相册</button><button class="blue-btn" data-act="post-now">直接发帖</button></div>
+    ${over?`<div class="dialog"><div class="dialog-card"><h3>图片过多</h3><p>超过 18 张，仅上传前 18 张。</p><div class="dialog-actions"><button class="ok" data-act="close-dialog">知道了</button></div></div></div>`:""}
+    ${sheetHtml()}
+  </section>`;
+}
+
+function renderRecord() {
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>做成录屏</b><span style="width:36px"></span></header>
+    <div class="scroll" style="padding:16px">
+      <div class="setting-card"><label>展示尺寸</label><div class="ratio">${["3:4","1:1","9:16"].map(r=>`<button data-ratio="${r}" class="${state.ratio===r?"on":""}">${r}</button>`).join("")}</div></div>
+      <div class="setting-card"><label>播放速度</label><div class="ratio">${["0.5x","1x","1.5x","2x"].map(s=>`<button data-speed="${s}" class="${state.recordSpeed===s?"on":""}">${s}</button>`).join("")}</div></div>
+      <div class="setting-card"><label>播放模式</label><div class="ratio">${["滑动播放","逐条弹出"].map(m=>`<button data-rmode="${m}" class="${state.recordMode===m?"on":""}">${m}</button>`).join("")}</div></div>
+    </div>
+    <div class="foot"><button class="blue-btn block" data-act="play-record">开始录屏预览</button></div>
+    ${state.countdown!=null?`<div class="countdown">${state.countdown||"开始"}</div>`:""}
+  </section>`;
+}
+
+function renderDrafts() {
+  return `<section class="page">
+    <header class="nav"><button class="icon" data-act="back">‹</button><b>草稿箱</b><span style="width:36px"></span></header>
+    <div class="scroll"><div class="draft-list">
+      ${state.drafts.length?state.drafts.map((d,i)=>`<button class="draft-card" data-open-draft="${i}">
+        <img class="draft-thumb" src="${esc(d.thumb||"")}" alt="">
+        <span><b>${esc(d.name)}</b><small>${esc(d.modeLabel)} · ${esc(d.at)}</small></span>
+      </button>`).join(""):`<p style="text-align:center;color:#aaa;padding:40px 0">暂无草稿</p>`}
+    </div></div>
+  </section>`;
+}
+
+function render() {
+  const map = {
+    home: renderHome,
+    setup: renderSetup,
+    chat: renderChat,
+    moments: renderMoments,
+    forum: renderForum,
+    finish: renderFinish,
+    preview: renderPreview,
+    record: renderRecord,
+    drafts: renderDrafts
+  };
+  app.innerHTML = (map[state.view] || renderHome)();
+  bindPager();
+  const chat = document.getElementById("chatScroll");
+  if (chat) chat.scrollTop = chat.scrollHeight;
+  if (state._focusPanelSearch) {
+    const panelSearch = document.getElementById("panelSearch");
+    if (panelSearch) {
+      panelSearch.focus();
+      const n = panelSearch.value.length;
+      panelSearch.setSelectionRange(n, n);
+    }
+    state._focusPanelSearch = false;
+  }
+}
+
+function bindPager() {
+  const pager = document.getElementById("rolePager");
+  if (!pager) return;
+  const w = Math.max(pager.clientWidth, 1);
+  pager.scrollLeft = state.rolePage * w;
+  pager.onscroll = () => {
+    const idx = Math.round(pager.scrollLeft / w);
+    if (idx !== state.rolePage) {
+      state.rolePage = idx;
+      document.querySelectorAll(".role-dots button").forEach((b,i)=>b.classList.toggle("on", i===idx));
+      const track = document.querySelector(".role-track i");
+      const count = document.querySelectorAll(".role-dots button").length || 1;
+      const thumbW = Math.max(18, 100 / count);
+      const thumbL = count > 1 ? idx * (100 - thumbW) / (count - 1) : 0;
+      if (track) { track.style.width = thumbW + "%"; track.style.left = thumbL + "%"; }
+    }
+  };
+}
+
+function resetForMode(mode) {
+  state.mode = mode;
+  state.chatKind = "single";
+  state.nickname = "";
+  state.groupSize = "";
+  state.cast = [];
+  state.meId = "";
+  state.messages = [];
+  state.moment = { text: "", images: [], likes: [], comments: [], replyTo: null };
+  state.forum = { name: "话本小说吧", title: "", body: "", showAvatar: true, showId: true, showTime: true, floors: [], replyTo: null };
+  state.storyName = "";
+  state.generated = [];
+  state.tools = false;
+  state.selectRange = false;
+  state.selectedMsgIds = [];
+  state.view = "setup";
+  closeSheet();
+}
+
+function addToCast(id) {
+  if (state.cast.includes(id)) {
+    state.cast = state.cast.filter(x => x !== id);
+    if (state.meId === id) state.meId = state.cast[0] || "";
+    ensureMe();
+    return;
+  }
+  const limit = maxCast();
+  if (state.cast.length >= limit) {
+    openDialog(state.mode === "chat" && state.chatKind === "single" ? "人数已满" : "超出上限",
+      state.mode === "chat" && state.chatKind === "single" ? "单人聊天仅能选择两位用户" : "角色上限为20人",
+      [{ label: "知道了", act: "close-dialog", primary: true }]);
+    return;
+  }
+  state.cast.push(id);
+  touch[id] = Date.now();
+  if (!state.meId) state.meId = id;
+  ensureMe();
+}
+
+function startCreate() {
+  if (!state.cast.length) {
+    openDialog("还差一步", "请至少选择一位角色", [{ label: "去选择", act: "open-roles", primary: true }, { label: "取消", act: "close-dialog" }]);
+    return;
+  }
+  if (state.mode === "chat" && state.chatKind === "group") {
+    const n = String(state.groupSize || "").trim();
+    if (n && !/^\d+$/.test(n)) { toast("群人数仅能输入数字"); return; }
+    if (n && Number(n) > 500) { toast("群人数上限为500"); return; }
+  }
+  ensureMe();
+  state.activeSender = state.meId;
+  if (state.mode === "chat") {
+    if (!state.messages.length) {
+      const other = state.cast.find(id => id !== state.meId);
+      state.messages = other
+        ? [{ id: 1, type: "text", sender: other, text: "你捡到这部手机了？" }, { id: 2, type: "text", sender: state.meId, text: "……是你的吗？" }]
+        : [{ id: 1, type: "text", sender: state.meId, text: "（自言自语）这部手机……" }];
+    }
+    state.view = "chat";
+  } else if (state.mode === "moments") state.view = "moments";
+  else state.view = "forum";
+}
+
+function storyFinalName() {
+  const name = state.storyName.trim();
+  if (name) return name.slice(0, 24);
+  const auto = "未命名故事" + state.unnamedSeq;
+  state.unnamedSeq += 1;
+  localStorage.setItem("pickup_unnamed", String(state.unnamedSeq));
+  return auto;
+}
+
+function drawChatPages(list) {
+  const rows = list.length ? list : [{ type: "system", text: "空内容" }];
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += 6) chunks.push(rows.slice(i, i + 6));
+  const [rw, rh] = state.ratio === "1:1" ? [750, 750] : state.ratio === "9:16" ? [720, 1280] : [750, 1000];
+  return chunks.map((chunk, idx) => {
+    const c = document.createElement("canvas");
+    c.width = rw; c.height = rh;
+    const x = c.getContext("2d");
+    x.fillStyle = "#ededed"; x.fillRect(0, 0, rw, rh);
+    x.fillStyle = "#fff"; x.fillRect(0, 0, rw, 90);
+    x.fillStyle = "#222"; x.font = "700 28px sans-serif"; x.textAlign = "center";
+    x.fillText(state.nickname || storyFinalName(), rw / 2, 58); x.textAlign = "left";
+    let y = 120;
+    chunk.forEach(m => {
+      if (m.type === "system" || m.type === "time") {
+        x.fillStyle = "#aaa"; x.font = "18px sans-serif"; x.textAlign = "center";
+        x.fillText(m.text || "", rw / 2, y); x.textAlign = "left"; y += 50; return;
+      }
+      const me = m.sender === state.meId;
+      const text = m.type === "text" ? m.text : m.type === "voice" ? "语音 " + (m.duration || 3) + "″" : m.type === "image" ? "[图片]" : m.type === "red" ? "红包 ¥" + (m.amount || "8.88") : m.type === "transfer" ? "转账 ¥" + (m.amount || "8.88") : m.text || "[消息]";
+      x.fillStyle = me ? "#95ec69" : "#fff";
+      x.beginPath();
+      const bx = me ? rw - 460 : 80;
+      if (x.roundRect) { x.roundRect(bx, y, 380, 72, 10); x.fill(); }
+      else { x.fillRect(bx, y, 380, 72); }
+      x.fillStyle = "#222"; x.font = "22px sans-serif";
+      x.fillText(String(text).slice(0, 18), bx + 16, y + 44);
+      y += 100;
+    });
+    x.fillStyle = "#aaa"; x.font = "16px sans-serif"; x.textAlign = "center";
+    x.fillText((idx + 1) + " / " + chunks.length, rw / 2, rh - 28);
+    return c.toDataURL("image/png");
+  });
+}
+
+function generateImages() {
+  let list = [];
+  if (state.mode === "chat") {
+    list = state.selectRange && state.selectedMsgIds.length
+      ? state.messages.filter(m => state.selectedMsgIds.includes(m.id))
+      : state.messages;
+  } else if (state.mode === "moments") {
+    list = [{ type: "text", sender: state.meId, text: state.moment.text || "朋友圈" },
+      ...state.moment.comments.map(c => ({ type: "text", sender: c.sender, text: c.text }))];
+  } else {
+    list = [{ type: "text", sender: state.meId, text: (state.forum.title || "") + " " + (state.forum.body || "") },
+      ...state.forum.floors.map(f => ({ type: "text", sender: f.sender, text: f.text }))];
+  }
+  if (list.length > 200) { toast("内容最长支持200条"); list = list.slice(0, 200); }
+  state.generated = drawChatPages(list);
+  if (!state.storyName.trim()) state.storyName = storyFinalName();
+  state.view = "preview";
+  if (state.generated.length > 18) state.sheet = "dialog";
+  render();
+  if (state.generated.length > 18) {
+    openDialog("图片过多", "若图片张数超过18张，后面仅上传前18张。", [{ label: "知道了", act: "ack-over", primary: true }]);
+  }
+}
+
+function saveDraft() {
+  const name = state.storyName.trim() || storyFinalName();
+  state.storyName = name;
+  const thumbList = state.mode === "chat" ? state.messages : [{ type:"text", sender: state.meId, text: state.moment.text || state.forum.title || name }];
+  const thumbs = drawChatPages(thumbList.slice(0, 4));
+  const item = {
+    name,
+    mode: state.mode,
+    modeLabel: { chat: "聊天记录", moments: "朋友圈", forum: "论坛体" }[state.mode],
+    at: new Date().toLocaleString(),
+    thumb: thumbs[0] || "",
+    snapshot: JSON.parse(JSON.stringify({
+      mode: state.mode, chatKind: state.chatKind, nickname: state.nickname, groupSize: state.groupSize,
+      meId: state.meId, cast: state.cast, messages: state.messages, moment: state.moment, forum: state.forum, storyName: name
+    }))
+  };
+  state.drafts.unshift(item);
+  localStorage.setItem("pickup_drafts", JSON.stringify(state.drafts.slice(0, 30)));
+  toast("已存草稿");
+  state.view = "drafts";
+  render();
+}
+
+function playCountdown() {
+  state.countdown = 3;
+  render();
+  const tick = () => {
+    if (state.countdown == null) return;
+    if (state.countdown <= 0) {
+      state.countdown = null;
+      toast("录屏预览完成 · " + state.recordSpeed + " · " + state.recordMode);
+      render();
+      return;
+    }
+    state.countdown -= 1;
+    render();
+    setTimeout(tick, 1000);
+  };
+  setTimeout(tick, 1000);
+}
+
+app.addEventListener("click", e => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (e.target.closest(".shade") && !e.target.closest(".sheet") && !e.target.closest(".dialog-card")) closeSheet();
+
+  if (act === "drafts") { state.view = "drafts"; closeSheet(); }
+  if (act === "pick-chat") resetForMode("chat");
+  if (act === "pick-moments") resetForMode("moments");
+  if (act === "pick-forum") resetForMode("forum");
+  if (act === "back") {
+    const map = { setup: "home", chat: "setup", moments: "setup", forum: "setup", finish: state.mode, preview: "finish", record: "finish", drafts: "home" };
+    const target = map[state.view];
+    if (target === "chat" || target === "moments" || target === "forum") state.view = target;
+    else state.view = target || "home";
+    closeSheet();
+  }
+  if (act === "open-roles") { state.sheet = "role"; state.searched = null; state.recentMode = false; state.rolePage = 0; state._focusPanelSearch = true; }
+  if (act === "open-create") { state.sheet = "create"; state.editRoleId = null; state.createForm = { name: "", tag: "", gender: "未设置", bubble: "#95ec69" }; }
+  if (act === "close-sheet" || act === "close-dialog") closeSheet();
+  if (act === "ack-over") closeSheet();
+  if (act === "search-roles" || act === "panel-search") {
+    const input = document.getElementById(act === "panel-search" ? "panelSearch" : "quickSearch");
+    const q = (input?.value || state.roleQuery || "").trim();
+    state.roleQuery = q;
+    state.sheet = "role";
+    state.searched = q;
+    state.recentMode = false;
+    state.rolePage = 0;
+    if (q && !library.some(r => r.name.includes(q) || (r.tag||"").includes(q) || (r.book||"").includes(q))) {
+      toast("未搜到该角色");
+    }
+  }
+  if (act === "recent-roles") { state.recentMode = true; state.searched = null; state.rolePage = 0; state.sheet = "role"; }
+  if (act === "save-role") {
+    const name = (document.getElementById("createName")?.value || state.createForm.name || "").trim();
+    const tag = (document.getElementById("createTag")?.value || state.createForm.tag || "").trim() || "自定义";
+    if (!name) { toast("请填写角色名称"); return; }
+    if (state.editRoleId) {
+      const r = person(state.editRoleId);
+      r.name = name; r.tag = tag; r.gender = state.createForm.gender; r.bubble = state.createForm.bubble;
+      touch[r.id] = Date.now();
+      toast("已保存");
+    } else {
+      if (library.length >= 75) { toast("角色库最多75个"); return; }
+      const id = "c" + Date.now();
+      library.unshift({ id, name, tag, color: COLORS[library.length % COLORS.length], book: "自定义", custom: true, gender: state.createForm.gender, bubble: state.createForm.bubble });
+      touch[id] = Date.now();
+      addToCast(id);
+      toast("已创建并加入角色库");
+    }
+    closeSheet();
+  }
+  if (act === "start") startCreate();
+  if (act === "size-inc") {
+    const n = Math.min(500, Number(state.groupSize || 0) + 1);
+    state.groupSize = String(n);
+  }
+  if (act === "size-dec") {
+    const n = Math.max(0, Number(state.groupSize || 0) - 1);
+    state.groupSize = n ? String(n) : "";
+  }
+  if (act === "toggle-tools") state.tools = !state.tools;
+  if (act === "send-msg") {
+    const input = document.getElementById("msgInput");
+    const text = input?.value.trim();
+    if (!text) return;
+    if (contentCount() >= 200) { toast("内容最长支持200条消息"); return; }
+    state.messages.push({ id: Date.now(), type: "text", sender: state.activeSender, text });
+    state.tools = false;
+  }
+  if (act === "finish") {
+    if (state.mode === "chat" && !state.messages.length) return toast("请先添加内容");
+    if (state.mode === "moments" && !state.moment.text.trim()) return toast("先写这一刻的想法");
+    state.view = "finish";
+  }
+  if (act === "continue-edit") state.view = state.mode === "chat" ? "chat" : state.mode;
+  if (act === "gen-images") generateImages();
+  if (act === "open-record") state.view = "record";
+  if (act === "play-record") playCountdown();
+  if (act === "save-draft") saveDraft();
+  if (act === "save-album") toast("已保存到相册（演示）");
+  if (act === "post-now") {
+    toast("已保存本地并跳转图文发布页（演示）");
+    setTimeout(() => { location.href = "index.html"; }, 600);
+  }
+  if (act === "toggle-range") {
+    state.selectRange = !state.selectRange;
+    if (!state.selectRange) state.selectedMsgIds = [];
+  }
+  if (act === "moment-like") {
+    const id = state.activeSender || state.meId;
+    if (state.moment.likes.includes(id)) state.moment.likes = state.moment.likes.filter(x => x !== id);
+    else state.moment.likes.push(id);
+  }
+  if (act === "send-comment") {
+    const input = document.getElementById("momentComment");
+    const text = input?.value.trim();
+    if (!text) return;
+    state.moment.comments.push({ sender: state.activeSender, text, replyTo: state.moment.replyTo ?? null });
+    state.moment.replyTo = null;
+  }
+  if (act === "send-floor") {
+    const input = document.getElementById("floorInput");
+    const text = input?.value.trim();
+    if (!text) return;
+    if (state.forum.floors.length >= 200) { toast("盖楼数最长支持200"); return; }
+    const imgInput = document.getElementById("floorImg");
+    const push = (image) => {
+      state.forum.floors.push({ id: Date.now(), sender: state.activeSender, text, replyTo: state.forum.replyTo, image: image || "" });
+      state.forum.replyTo = null;
+      if (imgInput) imgInput.value = "";
+      render();
+    };
+    if (imgInput?.files?.[0]) {
+      const reader = new FileReader();
+      reader.onload = () => push(reader.result);
+      reader.readAsDataURL(imgInput.files[0]);
+      return;
+    }
+    push("");
+    return;
+  }
+  if (act === "clear-reply") state.forum.replyTo = null;
+
+  const kind = e.target.closest("[data-kind]");
+  if (kind) {
+    state.chatKind = kind.dataset.kind;
+    if (state.chatKind === "single" && state.cast.length > 2) {
+      state.cast = state.cast.slice(0, 2);
+      ensureMe();
+      toast("单人聊天仅保留两位");
+    }
+  }
+  const setMe = e.target.closest("[data-set-me]");
+  if (setMe && !setMe.disabled) {
+    state.meId = setMe.dataset.setMe;
+    ensureMe();
+  }
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    const id = del.dataset.del;
+    state.cast = state.cast.filter(x => x !== id);
+    if (state.meId === id) state.meId = state.cast[0] || "";
+    ensureMe();
+  }
+  const castBtn = e.target.closest("[data-cast]");
+  if (castBtn && !e.target.closest("[data-del]") && !e.target.closest("[data-set-me]")) {
+    // 单击选中或取消：在 setup 列表里取消=从 cast 移除
+    addToCast(castBtn.dataset.cast);
+  }
+  const addBtn = e.target.closest("[data-add]");
+  if (addBtn) addToCast(addBtn.dataset.add);
+  const pageBtn = e.target.closest("[data-role-page]");
+  if (pageBtn) {
+    state.rolePage = +pageBtn.dataset.rolePage;
+    const pager = document.getElementById("rolePager");
+    if (pager) pager.scrollTo({ left: state.rolePage * pager.clientWidth, behavior: "smooth" });
+  }
+  const gender = e.target.closest("[data-gender]");
+  if (gender) state.createForm.gender = gender.dataset.gender;
+  const bubble = e.target.closest("[data-bubble]");
+  if (bubble) state.createForm.bubble = bubble.dataset.bubble;
+  const sender = e.target.closest("[data-sender]");
+  if (sender) state.activeSender = sender.dataset.sender;
+  const tool = e.target.closest("[data-tool]");
+  if (tool) {
+    const t = tool.dataset.tool;
+    const id = Date.now();
+    if (t === "voice") state.messages.push({ id, type: "voice", sender: state.activeSender, duration: "3" });
+    else if (t === "image") state.messages.push({ id, type: "image", sender: state.activeSender, image: "", text: "[图片]" });
+    else if (t === "red") state.messages.push({ id, type: "red", sender: state.activeSender, amount: "8.88", note: "恭喜发财" });
+    else if (t === "transfer") state.messages.push({ id, type: "transfer", sender: state.activeSender, amount: "66.00", note: "转账给你" });
+    else if (t === "location") state.messages.push({ id, type: "location", sender: state.activeSender, text: "徐家汇地铁站" });
+    else if (t === "time") state.messages.push({ id, type: "time", text: "5分钟前" });
+    else if (t === "system") state.messages.push({ id, type: "system", text: person(state.activeSender).name + "拍了拍对方" });
+    else if (t === "call") state.messages.push({ id, type: "system", text: "语音通话 0:12" });
+    state.tools = false;
+  }
+  const ratio = e.target.closest("[data-ratio]");
+  if (ratio) state.ratio = ratio.dataset.ratio;
+  const speed = e.target.closest("[data-speed]");
+  if (speed) state.recordSpeed = speed.dataset.speed;
+  const rmode = e.target.closest("[data-rmode]");
+  if (rmode) state.recordMode = rmode.dataset.rmode;
+  const msg = e.target.closest("[data-msg]");
+  if (msg && state.view === "chat" && state.selectRange) {
+    const id = Number(msg.dataset.msg);
+    if (state.selectedMsgIds.includes(id)) state.selectedMsgIds = state.selectedMsgIds.filter(x => x !== id);
+    else state.selectedMsgIds.push(id);
+  }
+  const replyC = e.target.closest("[data-reply-c]");
+  if (replyC) { state.moment.replyTo = Number(replyC.dataset.replyC); toast("将回复该评论"); }
+  const delC = e.target.closest("[data-del-c]");
+  if (delC) state.moment.comments.splice(Number(delC.dataset.delC), 1);
+  const replyF = e.target.closest("[data-reply-f]");
+  if (replyF) state.forum.replyTo = Number(replyF.dataset.replyF);
+  const delF = e.target.closest("[data-del-f]");
+  if (delF) state.forum.floors = state.forum.floors.filter(f => String(f.id) !== delF.dataset.delF);
+  const openDraft = e.target.closest("[data-open-draft]");
+  if (openDraft) {
+    const d = state.drafts[+openDraft.dataset.openDraft];
+    if (d?.snapshot) {
+      Object.assign(state, d.snapshot);
+      state.view = state.mode === "chat" ? "chat" : state.mode;
+      state.activeSender = state.meId;
+      toast("已打开草稿");
+    }
+  }
+
+  // 输入框内点击不整页重绘，避免抢焦点；但带 data-act 的控件（如设置页搜索）仍需刷新
+  const skipIds = ["nickInput","groupSize","panelSearch","createName","createTag","msgInput","momentText","momentComment","forumTitle","forumBody","barName","floorInput","storyName","liveNick"];
+  if (act || !skipIds.includes(e.target.id)) render();
+});
+
+app.addEventListener("input", e => {
+  if (e.target.id === "nickInput") {
+    const max = nickLimit();
+    let v = e.target.value;
+    if (len(v) > max) v = Array.from(v).slice(0, max).join("");
+    state.nickname = v;
+    e.target.value = v;
+    const counter = e.target.parentElement.querySelector(".counter");
+    if (counter) counter.textContent = `${len(v)}/${max}`;
+  }
+  if (e.target.id === "groupSize") {
+    state.groupSize = e.target.value.replace(/[^\d]/g, "").slice(0, 3);
+    e.target.value = state.groupSize;
+  }
+  if (e.target.id === "quickSearch" || e.target.id === "panelSearch") state.roleQuery = e.target.value;
+  if (e.target.id === "createName") state.createForm.name = e.target.value;
+  if (e.target.id === "createTag") state.createForm.tag = e.target.value;
+  if (e.target.id === "momentText") state.moment.text = e.target.value;
+  if (e.target.id === "forumTitle") state.forum.title = e.target.value;
+  if (e.target.id === "forumBody") state.forum.body = e.target.value;
+  if (e.target.id === "barName") state.forum.name = e.target.value;
+  if (e.target.id === "storyName") {
+    let v = e.target.value;
+    if (len(v) > 24) v = Array.from(v).slice(0, 24).join("");
+    state.storyName = v;
+    e.target.value = v;
+    const counter = e.target.parentElement.querySelector(".counter");
+    if (counter) counter.textContent = `${len(v)}/24`;
+  }
+  if (e.target.id === "liveNick") {
+    const max = nickLimit();
+    let v = e.target.textContent || "";
+    if (len(v) > max) { v = Array.from(v).slice(0, max).join(""); e.target.textContent = v; }
+    state.nickname = v;
+  }
+  if (e.target.id === "tgAvatar") state.forum.showAvatar = e.target.checked;
+  if (e.target.id === "tgId") state.forum.showId = e.target.checked;
+  if (e.target.id === "tgTime") state.forum.showTime = e.target.checked;
+});
+
+app.addEventListener("change", e => {
+  if (e.target.id === "momentImg" && e.target.files?.length) {
+    [...e.target.files].slice(0, 9 - state.moment.images.length).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => { state.moment.images.push(reader.result); render(); };
+      reader.readAsDataURL(file);
+    });
+  }
+});
+
+app.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "msgInput" && e.target.value.trim()) {
+    e.preventDefault();
+    document.querySelector("[data-act='send-msg']")?.click();
+  }
+});
+
+// 长按编辑角色
+let pressTimer = null;
+app.addEventListener("pointerdown", e => {
+  const long = e.target.closest("[data-long]");
+  if (!long) return;
+  pressTimer = setTimeout(() => {
+    const id = long.dataset.long;
+    const p = person(id);
+    state.editRoleId = id;
+    state.createForm = { name: p.name, tag: p.tag || "", gender: p.gender || "未设置", bubble: p.bubble || "#95ec69" };
+    state.sheet = "create";
+    render();
+  }, 550);
+});
+app.addEventListener("pointerup", () => clearTimeout(pressTimer));
+app.addEventListener("pointerleave", () => clearTimeout(pressTimer));
+app.addEventListener("pointercancel", () => clearTimeout(pressTimer));
+
+setInterval(() => {
+  const d = new Date();
+  const el = document.getElementById("clock");
+  if (el) el.textContent = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}, 1000);
+
+render();
+</script>
+</body>
+</html>

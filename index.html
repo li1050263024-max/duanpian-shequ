@@ -435,6 +435,8 @@
   <button class="tbtn primary" type="button" id="uploadBtn">上传音乐</button>
   <input id="file" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
   <p class="file-name" id="fileState">当前音乐：暧昧</p>
+  <a class="tbtn" href="pickup-phone.html" style="display:flex;align-items:center;justify-content:center;margin-top:8px;text-decoration:none;color:inherit">捡手机模式</a>
+  <a class="tbtn" href="xhs-literature.html" style="display:flex;align-items:center;justify-content:center;margin-top:8px;text-decoration:none;color:inherit">换手机文学生成器</a>
   <a class="tbtn" href="studio.html?v=17" style="display:flex;align-items:center;justify-content:center;margin-top:8px;text-decoration:none;color:inherit">短篇生成面板</a>
   <a class="tbtn" href="admin.html?v=8" style="display:flex;align-items:center;justify-content:center;margin-top:8px;text-decoration:none;color:inherit">投稿管理</a>
   <div class="row" style="margin-top:8px">
@@ -886,6 +888,7 @@ const views = {
   },
   createPick() {
     const modes = [
+      ["捡手机", "linear-gradient(180deg,#dce8ff,#f5f8ff)"],
       ["聊天记录", "linear-gradient(180deg,#d7ecff,#f7fbff)"],
       ["论坛体", "linear-gradient(180deg,#ffe7c2,#fff8ee)"],
       ["朋友圈", "linear-gradient(180deg,#d9f5df,#f4fff6)"]
@@ -1114,6 +1117,7 @@ function bind() {
   stage.querySelectorAll("[data-cmode]").forEach(el => el.addEventListener("click", () => {
     createStyle = el.dataset.cmode;
     toast("已选择" + createStyle);
+    if (createStyle === "捡手机") { location.href = "pickup-phone.html"; return; }
     show("editor");
   }));
   stage.querySelectorAll(".subchips > button, .subchips-scroll > button, .sort-pill button, .filters button:not(.rank)").forEach(btn => btn.addEventListener("click", () => {
@@ -1190,6 +1194,7 @@ function mountDrawer() {
 }
 function openCreateModeDrawer() {
   const modes = [
+    ["捡手机", "linear-gradient(180deg,#dce8ff,#f5f8ff)"],
     ["聊天记录", "linear-gradient(180deg,#d7ecff,#f7fbff)"],
     ["论坛体", "linear-gradient(180deg,#ffe7c2,#fff8ee)"],
     ["推特体", "linear-gradient(180deg,#d5dcff,#f5f7ff)"],
@@ -1203,6 +1208,7 @@ function openCreateModeDrawer() {
     if (link) link.textContent = createStyle;
     close();
     toast("已选择" + createStyle);
+    if (createStyle === "捡手机") location.href = "pickup-phone.html";
   }));
 }
 function pad(n) { return String(n).padStart(2, "0"); }
